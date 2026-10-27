@@ -44,15 +44,6 @@ jobs:
     - name: Build
       run: npm run build
 
-    - name: Package
-      run: cd dist && zip -r ../ships-vue-3d.zip .
-
-    - name: Upload artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: ships-vue-3d
-        path: dist
-
     - name: Get version
       id: version
       run: echo "version=$(grep '^version=' metadata.properties | cut -d'=' -f2)" >> $GITHUB_OUTPUT
@@ -97,6 +88,20 @@ jobs:
       run: |
         cp ships-3d.apk ships-3d-snapshot.apk
         cp ships-3d.apk ships-3d-release.apk
+
+    # The site serves the APK too, at /ships-3d.apk: a download from the
+    # site's own server works on phones whose browser fails to save GitHub's
+    # release downloads. Added after `cap sync`, so the app doesn't carry it.
+    - name: Package
+      run: |
+        cp ships-3d.apk dist/
+        cd dist && zip -r ../ships-vue-3d.zip .
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ships-vue-3d
+        path: dist
 
     - name: Create snapshot
       if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'

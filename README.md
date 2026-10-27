@@ -25,6 +25,7 @@ time; see `capacitor.config.ts`). It is a window onto the site, not a copy, so
 it always runs the deployed version and talks to the API exactly as the site
 does. CI builds it on every run and attaches it to the release (`ships-3d-snapshot.apk` on
 `latest-snapshot`, `ships-3d-release.apk` on `v<version>`).
+The site itself serves it too, at `/ships-3d.apk`.
 
 ```bash
 npm run build && npx cap sync android
