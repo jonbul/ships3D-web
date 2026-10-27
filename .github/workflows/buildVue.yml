@@ -49,7 +49,7 @@ jobs:
       id: version
       run: echo "version=$(grep '^version=' metadata.properties | cut -d'=' -f2)" >> $GITHUB_OUTPUT
 
-    # The Android app (see capacitor.config.ts), with this run's site inside.
+    # The Android app (see capacitor.config.ts): it opens the production site.
     # Signed with the release key when the ANDROID_KEYSTORE_BASE64 secret is
     # set, otherwise with a throwaway debug key, which installs fine by hand
     # but can't go on the Play Store and can't update an app signed with
