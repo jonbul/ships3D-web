@@ -23,7 +23,8 @@ dev server must be HTTPS because the session cookie is `Secure`.
 production site (`https://jonbul.ddns.net:5173`, or `SHIPS_APP_URL` at build
 time; see `capacitor.config.ts`). It is a window onto the site, not a copy, so
 it always runs the deployed version and talks to the API exactly as the site
-does. CI builds it on every run and attaches `ships-3d.apk` to the release.
+does. CI builds it on every run and attaches it to the release (`ships-3d-snapshot.apk` on
+`latest-snapshot`, `ships-3d-release.apk` on `v<version>`).
 
 ```bash
 npm run build && npx cap sync android
