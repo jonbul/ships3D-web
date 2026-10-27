@@ -25,6 +25,20 @@ export interface Settings {
   bulletDamage: number
   fireCooldownMs: number
   respawnDelayMs: number
+  /**
+   * Homing missiles: hold an enemy within lockAngle (radians) of the nose,
+   * nearer than lockRange, for lockTimeMs to lock on; then one missile every
+   * missileCooldownMs. A missile turns at up to missileTurnRate radians a
+   * second, and runs out of fuel after missileTtlMs.
+   */
+  lockRange: number
+  lockAngle: number
+  lockTimeMs: number
+  missileSpeed: number
+  missileTurnRate: number
+  missileTtlMs: number
+  missileDamage: number
+  missileCooldownMs: number
 }
 
 /**
@@ -98,6 +112,7 @@ export type ServerMessage =
   | { type: 'playerLeft'; id: string }
   | { type: 'snapshot'; players: PlayerState[] }
   | { type: 'fire'; id: string; owner: string; p: V3; d: V3 }
+  | { type: 'missile'; id: string; owner: string; target: string; p: V3; d: V3 }
   | { type: 'damage'; target: string; from: string; bulletId: string; life: number }
   | { type: 'died'; target: string; from: string }
   | { type: 'respawned'; id: string; life: number; p: V3; q: Q4 }
@@ -145,6 +160,9 @@ export type ClientMessage =
   | { type: 'join'; shipId: string; name: string }
   | { type: 'state'; p: V3; q: Q4; v: V3 }
   | { type: 'fire'; id: string; p: V3; d: V3 }
+  /** A homing missile at the ship we locked on to (or MOTHERSHIP). */
+  | { type: 'missile'; id: string; target: string; p: V3; d: V3 }
+  /** One of our bullets or missiles (its id as bulletId) hit `target`. */
   | { type: 'hit'; bulletId: string; target: string }
   | { type: 'respawn' }
   /** Our ship ran into ship `with`, or into the mothership (MOTHERSHIP). */

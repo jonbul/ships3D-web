@@ -1,5 +1,24 @@
 CHANGES
 =======
+Version 0.10.0 - 2026-10-27
+------------------
+Homing missiles. Needs ships-go-3d 0.9.0.
+
+- Keep an enemy close to your crosshair (within about 11°, and nearer than
+  700 u) for 2 seconds to lock on to it. A dashed box closes in around it
+  while locking, and turns into a red LOCKED box once locked. The lock holds
+  while the enemy stays roughly ahead, and breaks when it gets away.
+- Once locked, the MISSILE button appears: press it, or F on a keyboard. The
+  missile chases the locked ship until it hits it (it turns faster than any
+  ship, and flies almost twice as fast), or runs out of fuel after 8
+  seconds. It takes 3 life, a bullet 1.
+- One missile every 10 seconds: the button counts down while it reloads.
+- "Missile incoming!" blinks while an enemy missile is after you.
+- In the assault, attackers lock on to the mothership and gunners on
+  attackers; a missile is one hit, like a bullet.
+- Every player sees the missiles, with a smoke trail. In English, Spanish
+  and Basque.
+
 Version 0.8.0 - 2026-10-20
 ------------------
 Import 3D models into a ship. Needs ships-go-3d 0.8.0.
