@@ -1,6 +1,7 @@
 # Lints, type-checks, tests and builds ships-vue-3d, then publishes the built
-# site (dist/, zipped) as a GitHub release: `latest-snapshot` for PRs and
-# main, `v<version>` (from metadata.properties) for main.
+# site (dist/, zipped) and the Android app (APK) as a GitHub release:
+# `latest-snapshot` for PRs and main, `v<version>` (from metadata.properties)
+# for main.
 
 name: Vue
 
@@ -56,6 +57,41 @@ jobs:
       id: version
       run: echo "version=$(grep '^version=' metadata.properties | cut -d'=' -f2)" >> $GITHUB_OUTPUT
 
+    # The Android app (see capacitor.config.ts): it opens the production site.
+    # Signed with the release key when the ANDROID_KEYSTORE_BASE64 secret is
+    # set, otherwise with a throwaway debug key, which installs fine by hand
+    # but can't go on the Play Store and can't update an app signed with
+    # another key.
+    - name: Set up Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: temurin
+        java-version: 21
+
+    - name: Build APK
+      env:
+        ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+      run: |
+        npx cap sync android
+        if [ -n "$ANDROID_KEYSTORE_BASE64" ]; then
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+          export ANDROID_KEYSTORE="$RUNNER_TEMP/release.jks"
+          (cd android && ./gradlew --no-daemon assembleRelease)
+          cp android/app/build/outputs/apk/release/app-release.apk ships-3d.apk
+        else
+          (cd android && ./gradlew --no-daemon assembleDebug)
+          cp android/app/build/outputs/apk/debug/app-debug.apk ships-3d.apk
+        fi
+
+    - name: Upload APK artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ships-3d-apk
+        path: ships-3d.apk
+
     - name: Create snapshot
       if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
       uses: softprops/action-gh-release@v2
@@ -63,7 +99,9 @@ jobs:
         tag_name: latest-snapshot
         name: Latest Snapshot
         prerelease: true
-        files: ships-vue-3d.zip
+        files: |
+          ships-vue-3d.zip
+          ships-3d.apk
 
     - name: Create release
       if: github.ref == 'refs/heads/main'
@@ -71,4 +109,6 @@ jobs:
       with:
         tag_name: v${{ steps.version.outputs.version }}
         name: Release v${{ steps.version.outputs.version }}
-        files: ships-vue-3d.zip
+        files: |
+          ships-vue-3d.zip
+          ships-3d.apk
