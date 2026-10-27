@@ -18,6 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      pull-requests: write
     steps:
     - uses: actions/checkout@v7
 
@@ -113,6 +114,36 @@ jobs:
         files: |
           ships-vue-3d.zip
           ships-3d-snapshot.apk
+
+    # One comment per PR, updated by each run, so the APK is a tap away from
+    # the PR. Not on fork PRs, whose token can't comment.
+    - name: Link APK on the PR
+      if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const marker = '<!-- ships-3d-apk -->'
+          const base = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}`
+          const sha = context.payload.pull_request.head.sha.slice(0, 7)
+          const body = [
+            marker,
+            `📱 **Android APK** for ${sha}:`,
+            `- [ships-3d-snapshot.apk](${base}/releases/download/latest-snapshot/ships-3d-snapshot.apk) (latest-snapshot release)`,
+            `- [Workflow run](${base}/actions/runs/${context.runId}) (artifact \`ships-3d-apk\`, needs GitHub login)`,
+            '',
+            'After deploying the snapshot, the site serves it too at `/ships-3d.apk`.',
+          ].join('\n')
+          const { data: comments } = await github.rest.issues.listComments({
+            ...context.repo,
+            issue_number: context.issue.number,
+            per_page: 100,
+          })
+          const existing = comments.find((c) => c.body?.startsWith(marker))
+          if (existing) {
+            await github.rest.issues.updateComment({ ...context.repo, comment_id: existing.id, body })
+          } else {
+            await github.rest.issues.createComment({ ...context.repo, issue_number: context.issue.number, body })
+          }
 
     - name: Create release
       if: github.ref == 'refs/heads/main'
