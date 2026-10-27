@@ -85,6 +85,10 @@ function formatDate(ms?: number): string {
   gap: 1rem;
 }
 .card {
+  /* A column, so the buttons can sit at the bottom of every card in a row,
+     whatever the length of the name above them. */
+  display: flex;
+  flex-direction: column;
   padding: 0.7rem;
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -101,6 +105,13 @@ function formatDate(ms?: number): string {
 }
 .card-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.5rem;
+  margin-top: auto;
+}
+/* Wrap instead of overflowing the card when both don't fit on one line. */
+.card-actions > * {
+  flex: 1 1 auto;
+  text-align: center;
 }
 </style>
