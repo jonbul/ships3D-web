@@ -19,11 +19,12 @@ dev server must be HTTPS because the session cookie is `Secure`.
 
 ## Android app
 
-`android/` is a [Capacitor](https://capacitorjs.com) app that opens the
-production site (`https://jonbul.ddns.net:5173`, or `SHIPS_APP_URL` at build
-time; see `capacitor.config.ts`). It is a window onto the site, not a copy, so
-it always runs the deployed version and talks to the API exactly as the site
-does. CI builds it on every run and attaches it to the release (`ships-3d-snapshot.apk` on
+`android/` is a [Capacitor](https://capacitorjs.com) app that carries its own
+copy of the site, so every APK is exactly the build it came from. It serves
+that copy as `https://jonbul.ddns.net` (`SHIPS_APP_HOST` at build time; see
+`capacitor.config.ts`) and uses the API at that host's port 3000, like the
+site. The backend must allow that origin: add `https://jonbul.ddns.net` to
+`SHIPS3D_ALLOWED_ORIGINS`. CI builds it on every run and attaches it to the release (`ships-3d-snapshot.apk` on
 `latest-snapshot`, `ships-3d-release.apk` on `v<version>`).
 The site itself serves it too, at `/ships-3d.apk`.
 
