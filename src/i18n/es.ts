@@ -228,7 +228,12 @@ const es: Messages = {
   },
 
   play: {
-    title: 'Elige tu nave',
+    backToSite: 'Volver al sitio',
+    titleCaption: 'combate en el espacio',
+    titlePrompt: 'HAZ CLIC O PULSA INTRO',
+    backToModes: 'Volver a los modos',
+    settings: 'Ajustes',
+    modeHints: '← → ELEGIR   INTRO ACEPTAR',
     yourName: 'Tu nombre',
     guest: 'Invitado',
     playingAs: (name: string) => `Juegas como ${name}`,
@@ -236,8 +241,12 @@ const es: Messages = {
     stick: '🕹 Joystick',
     tilt: '📱 Inclinación',
     launch: 'Despegar',
-    myShips: 'Mis naves',
-    builtIn: 'Naves incluidas',
+    effectsVolume: 'Efectos',
+    invertPitch: 'Arriba sube el morro',
+    fineAim: 'Puntería fina',
+    previousShip: 'Nave anterior',
+    nextShip: 'Nave siguiente',
+    musicVolume: 'Música',
     loginBefore: '',
     loginLink: 'Inicia sesión',
     loginAfter: ' para pilotar las naves que diseñes tú.',
@@ -257,7 +266,12 @@ const es: Messages = {
 
   game: {
     leave: 'Salir',
-    leavingZone: 'Estás saliendo de la zona de batalla',
+    pause: 'Pausa',
+    paused: 'En pausa',
+    resume: 'Seguir',
+    killsAndDeaths: (kills: number, deaths: number) => `${kills} derribos · ${deaths} bajas`,
+    copilotLeaving: '¡Nos estamos saliendo de la arena de combate, señor!',
+    copilotTakingHelm: 'Tomo el mando, señor. ¡De vuelta a la arena!',
     hint: 'Haz clic para dirigir con el ratón · W/S acelerar · A/D alabeo · flechas girar · Espacio disparar · F misil (con el blanco fijado) · Tab marcador · +/- alcance del radar',
     touchHint:
       'Izquierda: acelerador · joystick o inclinación para dirigir · ⟲ ⟳ alabeo · DISPARAR · MISIL con el blanco fijado · toca el radar para cambiar su alcance',

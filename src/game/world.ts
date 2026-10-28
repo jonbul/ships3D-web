@@ -18,6 +18,8 @@ import {
   type Material,
 } from 'three'
 
+import { EDGE_DETAIL } from './edge'
+
 const SKY_RADIUS = 6000
 const STARS = 2500
 /** Space dust: specks around the ship that make speed visible. */
@@ -71,7 +73,7 @@ export class World {
     scene.add(this.dust)
 
     const boundary = new Mesh(
-      this.track(new IcosahedronGeometry(worldRadius, 4)),
+      this.track(new IcosahedronGeometry(worldRadius, EDGE_DETAIL)),
       this.track(
         new MeshBasicMaterial({
           color: 0x4fc3f7,

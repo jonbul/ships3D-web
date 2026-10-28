@@ -79,6 +79,7 @@ async function onLogout() {
   font-size: 1.2rem;
   color: var(--text);
   text-decoration: none;
+  font-family: var(--heading-font);
 }
 .brand span {
   color: var(--accent);

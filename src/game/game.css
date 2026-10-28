@@ -23,7 +23,7 @@
   inset: 0;
   pointer-events: none;
   color: #e6ecf5;
-  font-family: system-ui, sans-serif;
+  font-family: var(--text-font);
   text-shadow: 0 1px 2px #000;
 }
 .hud [hidden] {
@@ -50,7 +50,7 @@
   width: 10rem;
   height: 0.7rem;
   border: 1px solid rgb(255 255 255 / 0.5);
-  border-radius: 4px;
+  border-radius: var(--radius);
   overflow: hidden;
   background: rgb(0 0 0 / 0.4);
 }
@@ -69,7 +69,8 @@
 
 .hud-feed {
   position: absolute;
-  top: max(0.8rem, env(safe-area-inset-top));
+  /* Below the pause button. */
+  top: calc(max(0.8rem, env(safe-area-inset-top)) + 3.5rem);
   right: max(0.8rem, env(safe-area-inset-right));
   display: flex;
   flex-direction: column;
@@ -80,7 +81,7 @@
 .hud-feed-line {
   padding: 0.15rem 0.5rem;
   background: rgb(0 0 0 / 0.45);
-  border-radius: 4px;
+  border-radius: var(--radius);
 }
 
 .hud-crosshair {
@@ -94,22 +95,76 @@
   border-radius: 50%;
 }
 
-.hud-status,
-.hud-warning {
+.hud-status {
   position: absolute;
   left: 50%;
   transform: translateX(-50%);
   padding: 0.5rem 1rem;
-  border-radius: 6px;
+  border-radius: var(--radius);
   background: rgb(0 0 0 / 0.6);
 }
 .hud-status {
   top: 35%;
   font-size: 1.3rem;
 }
-.hud-warning {
-  top: 22%;
-  color: #ffd54f;
+.hud-hit {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  box-shadow: inset 0 0 6rem 1rem rgb(255 60 70 / 0.75);
+}
+.hud-hit-on {
+  animation: hud-hit 0.5s ease-out;
+}
+@keyframes hud-hit {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+.hud-copilot {
+  position: absolute;
+  left: 50%;
+  bottom: max(3.2rem, calc(env(safe-area-inset-bottom) + 2.4rem));
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  max-width: min(32rem, calc(100% - 2rem));
+  padding: 0.5rem 1rem 0.5rem 0.6rem;
+  border: 2px solid #9cc8f2;
+  border-radius: var(--radius);
+  background: rgb(14 28 66 / 0.85);
+  color: #eaf4ff;
+  animation: hud-copilot-in 0.25s ease-out;
+}
+.hud-copilot-face {
+  flex: none;
+  width: 2.6rem;
+  height: 2.6rem;
+  animation: hud-copilot-bob 1.4s ease-in-out infinite;
+}
+.hud-copilot-light {
+  animation: hud-copilot-blink 0.8s steps(2) infinite;
+}
+@keyframes hud-copilot-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 0.6rem);
+  }
+}
+@keyframes hud-copilot-bob {
+  50% {
+    transform: translateY(-3px);
+  }
+}
+@keyframes hud-copilot-blink {
+  50% {
+    opacity: 0.3;
+  }
 }
 
 .hud-hint {
@@ -142,7 +197,7 @@
   transform: translate(-50%, -50%);
   min-width: 18rem;
   padding: 1rem;
-  border-radius: 8px;
+  border-radius: var(--radius);
   background: rgb(10 14 23 / 0.85);
 }
 .hud-scoreboard table {
@@ -357,7 +412,7 @@
   inset: 0;
   pointer-events: none;
   color: #e6ecf5;
-  font-family: system-ui, sans-serif;
+  font-family: var(--text-font);
   --edge: max(0.8rem, env(safe-area-inset-left));
   --edge-right: max(0.8rem, env(safe-area-inset-right));
   --edge-bottom: max(0.8rem, env(safe-area-inset-bottom));
@@ -394,7 +449,7 @@
 }
 .touch-tool {
   padding: 0.35rem 0.6rem;
-  border-radius: 6px;
+  border-radius: var(--radius);
   font-size: 0.85rem;
 }
 
@@ -499,7 +554,7 @@
     left: 50%;
     transform: translateX(-50%);
     padding: 0.4rem 0.8rem;
-    border-radius: 6px;
+    border-radius: var(--radius);
     background: rgb(0 0 0 / 0.55);
     font-size: 0.9rem;
     white-space: nowrap;
@@ -543,7 +598,7 @@
   max-height: calc(100% - 6rem);
   overflow-y: auto;
   padding: 1rem 1.2rem;
-  border-radius: 8px;
+  border-radius: var(--radius);
   background: rgb(10 14 23 / 0.88);
   text-align: center;
 }
@@ -584,4 +639,122 @@
 }
 .hud-marker.other .hud-marker-life {
   display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hud-lifebar.low .hud-lifebar-heart,
+  .hud-copilot,
+  .hud-copilot-face,
+  .hud-copilot-light {
+    animation: none;
+  }
+}
+
+/*
+ * The pixel-art look of the 3DS's menus, on the HUD: windows of night-blue glass
+ * with a light edge and a hard shadow, square corners, the pixel fonts.
+ */
+.hud-status,
+.hud-feed-line,
+.hud-pause,
+.hud-scoreboard,
+.hud-death,
+.hud-round,
+.hud-result,
+.hud-copilot {
+  border: 2px solid var(--edge);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--panel) 88%, transparent);
+  box-shadow: var(--drop);
+}
+.hud-feed-line {
+  border-width: 1px;
+  box-shadow: none;
+}
+.hud-scoreboard h2,
+.hud-death h2,
+.hud-result h2,
+.hud-status {
+  font-family: var(--heading-font);
+  letter-spacing: 0.04em;
+}
+.hud-speed,
+.hud-round-time,
+.hud-radar-label {
+  font-family: var(--label-font);
+  font-size: 0.75rem;
+}
+
+/* The life bar: drawn in the 3DS's pixels (lifeBar.ts), shown twice their size. */
+.hud-lifebar {
+  width: calc(var(--bar-width, 150) * 2px);
+  max-width: 60vw;
+  height: auto;
+  display: block;
+}
+.hud-lifebar.low .hud-lifebar-heart {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: hud-heart-beat 0.625s steps(1) infinite;
+}
+@keyframes hud-heart-beat {
+  0% {
+    transform: scale(1.2);
+  }
+  30% {
+    transform: scale(1);
+  }
+}
+
+/* The pause button, at the top right, for a finger; Escape and P open the menu too. */
+.hud-pause-button {
+  position: absolute;
+  top: max(0.8rem, env(safe-area-inset-top));
+  right: max(0.8rem, env(safe-area-inset-right));
+  width: 2.75rem;
+  height: 2.75rem;
+  padding: 0.55rem;
+  pointer-events: auto;
+}
+.hud-pause-button svg {
+  width: 100%;
+  height: 100%;
+  fill: currentColor;
+}
+.hud-pause {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  min-width: min(20rem, calc(100% - 2rem));
+  padding: 1.2rem 1.4rem;
+  pointer-events: auto;
+}
+.hud-pause-score {
+  margin: 0;
+  text-align: center;
+  color: var(--muted);
+}
+.hud-pause h2 {
+  margin: 0 0 0.3rem;
+  text-align: center;
+}
+.hud-pause-switch {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+.hud-pause-switch input {
+  width: 1.2rem;
+  height: 1.2rem;
+  accent-color: var(--accent);
+}
+.hud-pause-volume {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  color: var(--muted);
 }

@@ -228,7 +228,12 @@ const eu: Messages = {
   },
 
   play: {
-    title: 'Aukeratu zure ontzia',
+    backToSite: 'Gunera itzuli',
+    titleCaption: 'borroka espazioan',
+    titlePrompt: 'EGIN KLIK EDO SAKATU SARTU',
+    backToModes: 'Moduetara itzuli',
+    settings: 'Ezarpenak',
+    modeHints: '← → AUKERATU   SARTU ONARTU',
     yourName: 'Zure izena',
     guest: 'Gonbidatua',
     playingAs: (name: string) => `${name} gisa jokatzen`,
@@ -236,8 +241,12 @@ const eu: Messages = {
     stick: '🕹 Joysticka',
     tilt: '📱 Okertu',
     launch: 'Abiatu',
-    myShips: 'Nire ontziak',
-    builtIn: 'Jokoko ontziak',
+    effectsVolume: 'Efektuak',
+    invertPitch: 'Gora sakatuta, muturra igo',
+    fineAim: 'Zehaztasun fina',
+    previousShip: 'Aurreko ontzia',
+    nextShip: 'Hurrengo ontzia',
+    musicVolume: 'Musika',
     loginBefore: '',
     loginLink: 'Hasi saioa',
     loginAfter: ' zuk diseinatutako ontziak gidatzeko.',
@@ -257,7 +266,12 @@ const eu: Messages = {
 
   game: {
     leave: 'Irten',
-    leavingZone: 'Borroka-eremutik irteten ari zara',
+    pause: 'Pausatu',
+    paused: 'Pausan',
+    resume: 'Jarraitu',
+    killsAndDeaths: (kills: number, deaths: number) => `${kills} bota · ${deaths} galdu`,
+    copilotLeaving: 'Borroka-arenatik irteten ari gara, jauna!',
+    copilotTakingHelm: 'Lema hartzen dut, jauna. Arenara itzuliko gara!',
     hint: 'Egin klik saguarekin gidatzeko · W/S azeleratu · A/D albo-biraketa · geziak biratu · Zuriunea tiro · F misila (jomuga finkatuta) · Tab markagailua · +/- radarraren irismena',
     touchHint:
       'Ezkerrean: azeleragailua · joysticka edo okertu gidatzeko · ⟲ ⟳ albo-biraketa · SU · MISILA jomuga finkatuta · ukitu radarra irismena aldatzeko',

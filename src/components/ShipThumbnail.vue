@@ -28,6 +28,6 @@ const src = computed(() => (texturesLoaded.value >= 0 ? shipThumbnail(props.laye
   height: auto;
   aspect-ratio: 1;
   background: radial-gradient(circle, #1a2336 0%, #0a0e17 70%);
-  border-radius: 6px;
+  border-radius: var(--radius);
 }
 </style>

@@ -1,22 +1,62 @@
+/*
+ * The pixel-art look of the Nintendo 3DS client's menus: pixel fonts, night-blue
+ * glass windows with a light edge and a hard shadow, a sky-blue accent. The
+ * fonts are under the SIL Open Font License; their licences are beside them in
+ * public/fonts.
+ */
+@font-face {
+  font-family: 'VT323';
+  src: url('/fonts/VT323-Regular.ttf') format('truetype');
+  font-display: swap;
+  /* VT323's letters are small for their size: shown larger, it reads like the others. */
+  size-adjust: 125%;
+}
+@font-face {
+  font-family: 'Silkscreen';
+  src: url('/fonts/Silkscreen-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Press Start 2P';
+  src: url('/fonts/PressStart2P-Regular.ttf') format('truetype');
+  font-display: swap;
+  /* Press Start 2P's letters are large for their size. */
+  size-adjust: 75%;
+}
+
 :root {
-  --bg: #05070d;
-  --panel: #0f1420;
-  --panel-2: #161d2d;
-  --border: #253048;
-  --text: #e6ecf5;
-  --muted: #8b97ad;
-  --accent: #4fc3f7;
-  --danger: #ef5350;
-  --success: #66bb6a;
+  --bg: #0a1430;
+  --panel: #12224a;
+  --panel-2: #1a2d5c;
+  --border: #3a5590;
+  --edge: #9cc8f2;
+  --shadow: #02060f;
+  --text: #eaf4ff;
+  --muted: #a9bedd;
+  --accent: #5fb0ff;
+  --danger: #ff7088;
+  --success: #5ee08a;
+  /* Pixel art has square corners; a window's hard shadow is a step below and to the right. */
+  --radius: 0;
+  --drop: 4px 4px 0 var(--shadow);
+  --text-font: 'VT323', ui-monospace, monospace;
+  --heading-font: 'Silkscreen', 'VT323', ui-monospace, monospace;
+  --label-font: 'Press Start 2P', 'VT323', ui-monospace, monospace;
   color-scheme: dark;
-  font-family:
-    system-ui,
-    -apple-system,
-    'Segoe UI',
-    Roboto,
-    sans-serif;
+  font-family: var(--text-font);
+  font-size: 1.05rem;
   color: var(--text);
   background: var(--bg);
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--heading-font);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-wrap: balance;
 }
 
 * {
@@ -27,6 +67,18 @@ html,
 body {
   margin: 0;
   min-height: 100dvh;
+}
+
+/* Space behind every page: a few layers of stars that never move. */
+body {
+  background-color: var(--bg);
+  background-image:
+    radial-gradient(1px 1px at 20px 30px, #eaf4ff, transparent),
+    radial-gradient(1px 1px at 140px 90px, #cfe6ff, transparent),
+    radial-gradient(2px 2px at 260px 160px, #ffffff, transparent),
+    radial-gradient(1px 1px at 80px 210px, #ffd6e5, transparent),
+    radial-gradient(1px 1px at 330px 260px, #c9f2ff, transparent);
+  background-size: 360px 300px;
 }
 
 #app {
@@ -49,13 +101,26 @@ select {
 button,
 .button {
   display: inline-block;
-  padding: 0.45rem 0.9rem;
-  border: 1px solid var(--border);
-  border-radius: 6px;
+  padding: 0.5rem 0.9rem;
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
   background: var(--panel-2);
   color: var(--text);
+  font-family: var(--label-font);
+  font-size: 0.85rem;
+  line-height: 1.3;
   text-decoration: none;
+  box-shadow: 2px 2px 0 var(--shadow);
   cursor: pointer;
+}
+button:active:not(:disabled),
+.button:active {
+  transform: translate(2px, 2px);
+  box-shadow: none;
+}
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 button:hover:not(:disabled),
 .button:hover {
@@ -79,14 +144,22 @@ button.danger {
 
 input:not([type='checkbox']):not([type='color']):not([type='range']),
 select {
-  padding: 0.4rem 0.55rem;
-  border: 1px solid var(--border);
-  border-radius: 6px;
+  padding: 0.35rem 0.55rem;
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
   background: var(--bg);
 }
 input:focus,
 select:focus {
-  outline: 1px solid var(--accent);
+  outline: 2px solid var(--accent);
+  outline-offset: 0;
+}
+
+/* A window, as the 3DS's menus draw them: night-blue glass, a light edge, a hard shadow. */
+.window {
+  border: 2px solid var(--edge);
+  background: color-mix(in srgb, var(--panel) 88%, transparent);
+  box-shadow: var(--drop);
 }
 
 .page {

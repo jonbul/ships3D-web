@@ -226,7 +226,12 @@ const en = {
   },
 
   play: {
-    title: 'Choose your ship',
+    backToSite: 'Back to the site',
+    titleCaption: 'a space dogfight',
+    titlePrompt: 'CLICK OR PRESS ENTER',
+    backToModes: 'Back to the modes',
+    settings: 'Settings',
+    modeHints: '← → CHOOSE   ENTER OK',
     yourName: 'Your name',
     guest: 'Guest',
     playingAs: (name: string) => `Playing as ${name}`,
@@ -234,8 +239,12 @@ const en = {
     stick: '🕹 Stick',
     tilt: '📱 Tilt',
     launch: 'Launch',
-    myShips: 'My ships',
-    builtIn: 'Built-in ships',
+    effectsVolume: 'Effects',
+    invertPitch: 'Up raises the nose',
+    fineAim: 'Fine aim',
+    previousShip: 'Previous ship',
+    nextShip: 'Next ship',
+    musicVolume: 'Music',
     loginBefore: '',
     loginLink: 'Log in',
     loginAfter: ' to fly ships you designed yourself.',
@@ -254,7 +263,12 @@ const en = {
 
   game: {
     leave: 'Leave',
-    leavingZone: 'Leaving the battle zone',
+    pause: 'Pause',
+    paused: 'Paused',
+    resume: 'Resume',
+    killsAndDeaths: (kills: number, deaths: number) => `${kills} kills · ${deaths} deaths`,
+    copilotLeaving: "We're leaving the combat arena, sir!",
+    copilotTakingHelm: 'Taking the helm, sir. Back to the arena!',
     hint: 'Click to steer with the mouse · W/S throttle · A/D roll · arrows turn · Space fire · F missile (once locked on) · Tab scores · +/- radar range',
     touchHint:
       'Left: throttle · stick or tilt to steer · ⟲ ⟳ roll · FIRE · MISSILE once locked on · tap the radar to change its range',

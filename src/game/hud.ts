@@ -1,9 +1,15 @@
 import { t } from '@/i18n'
 
+import { Copilot } from './copilot'
+import { handling, setHandling } from './handling'
+import { LifeBar } from './lifeBar'
+import { sound } from './sound'
 import './game.css'
 
 export interface HudActions {
   onLeave(): void
+  onPause(): void
+  onResume(): void
   onRespawn(): void
   onRadarTap(): void
   onMissile(): void
@@ -63,10 +69,13 @@ const KILL_FEED_MAX = 5
  */
 export class Hud {
   readonly root: HTMLDivElement
-  private readonly lifeFill: HTMLDivElement
+  private readonly lifeBar: LifeBar
+  private readonly pause: HTMLDivElement
+  private pauseScore!: HTMLParagraphElement
   private readonly speedText: HTMLSpanElement
   private readonly status: HTMLDivElement
-  private readonly warning: HTMLDivElement
+  private readonly copilot: Copilot
+  private readonly hitFlash: HTMLDivElement
   private readonly feed: HTMLDivElement
   private readonly scoreboard: HTMLDivElement
   private readonly scoreBody: HTMLTableSectionElement
@@ -106,14 +115,15 @@ export class Hud {
     this.markerLayer = el('div', 'hud-markers', this.root)
 
     const top = el('div', 'hud-top', this.root)
-    const leave = el('button', 'hud-leave', top)
-    leave.textContent = text.leave
-    leave.addEventListener('click', () => actions.onLeave())
-
     const gauges = el('div', 'hud-gauges', top)
     this.gauges = gauges
-    const life = el('div', 'hud-life', gauges)
-    this.lifeFill = el('div', 'hud-life-fill', life)
+    // Life as the 3DS shows it, at the top left: a heart and a capsule of charges.
+    this.lifeBar = new LifeBar(gauges)
+    const pause = el('button', 'hud-pause-button', this.root)
+    pause.setAttribute('aria-label', text.pause)
+    pause.append(pauseGlyph())
+    pause.addEventListener('click', () => actions.onPause())
+    this.pause = this.pauseMenu(actions)
     this.speedText = el('span', 'hud-speed', gauges)
 
     // Assault: which team we're on, the time left, and the mothership's life.
@@ -145,8 +155,8 @@ export class Hud {
     this.missileWarning.textContent = text.missileIncoming
 
     this.status = el('div', 'hud-status', this.root)
-    this.warning = el('div', 'hud-warning', this.root)
-    this.warning.textContent = text.leavingZone
+    this.copilot = new Copilot(this.root)
+    this.hitFlash = el('div', 'hud-hit', this.root)
 
     this.hint = el('div', 'hud-hint', this.root)
     this.hint.textContent = text.hint
@@ -184,7 +194,6 @@ export class Hud {
     this.resultText = el('p', '', this.result)
     this.resultReturn = el('p', 'hud-result-return', this.result)
 
-    this.warning.hidden = true
     this.scoreboard.hidden = true
     this.death.hidden = true
     this.round.hidden = true
@@ -197,9 +206,48 @@ export class Hud {
   }
 
   setLife(life: number, max: number): void {
-    const fraction = Math.max(0, Math.min(1, life / max))
-    this.lifeFill.style.width = `${fraction * 100}%`
-    this.lifeFill.classList.toggle('low', fraction <= 0.3)
+    this.lifeBar.update(life, max)
+  }
+
+  /** Shows or hides the pause menu, with our kills and deaths as the 3DS's PILOT page shows them. */
+  showPause(visible: boolean, kills = 0, deaths = 0): void {
+    this.pause.hidden = !visible
+    this.pauseScore.textContent = t.value.game.killsAndDeaths(kills, deaths)
+    if (visible) {
+      this.pause.querySelector('button')?.focus()
+    }
+  }
+
+  /** The pause menu: back to the game, the sound's volumes, or out of it. */
+  private pauseMenu(actions: HudActions): HTMLDivElement {
+    const text = t.value.game
+    const play = t.value.play
+    const menu = el('div', 'hud-pause', this.root)
+    menu.setAttribute('role', 'dialog')
+    menu.setAttribute('aria-label', text.paused)
+    el('h2', '', menu).textContent = text.paused
+    this.pauseScore = el('p', 'hud-pause-score', menu)
+    const resume = el('button', 'primary', menu)
+    resume.textContent = text.resume
+    resume.addEventListener('click', () => actions.onResume())
+    for (const kind of ['effects', 'music'] as const) {
+      slider(
+        menu,
+        kind === 'effects' ? play.effectsVolume : play.musicVolume,
+        sound.currentVolumes[kind],
+        (value) => {
+          sound.setVolumes({ ...sound.currentVolumes, [kind]: value })
+          sound.play('move')
+        },
+      )
+    }
+    checkbox(menu, play.invertPitch, handling.invertPitch, (on) => setHandling({ invertPitch: on }))
+    slider(menu, play.fineAim, handling.precision, (value) => setHandling({ precision: value }))
+    const leave = el('button', 'danger', menu)
+    leave.textContent = text.leave
+    leave.addEventListener('click', () => actions.onLeave())
+    menu.hidden = true
+    return menu
   }
 
   setSpeed(speed: number): void {
@@ -212,8 +260,17 @@ export class Hud {
     this.status.hidden = text === null
   }
 
-  setBoundaryWarning(visible: boolean): void {
-    this.warning.hidden = !visible
+  /** Flashes the screen's edge red: our ship was hit. */
+  flashHit(): void {
+    // Restarting a CSS animation needs it taken off and a reflow in between.
+    this.hitFlash.classList.remove('hud-hit-on')
+    void this.hitFlash.offsetWidth
+    this.hitFlash.classList.add('hud-hit-on')
+  }
+
+  /** The copilot's words, or null for silence. */
+  setCopilot(words: string | null): void {
+    this.copilot.say(words)
   }
 
   setHint(text: string): void {
@@ -411,4 +468,55 @@ function el<K extends keyof HTMLElementTagNameMap>(
   if (className) node.className = className
   if (parent) parent.appendChild(node)
   return node
+}
+
+/** A labelled slider from 0 to 1, in tenths, that calls back with its value when it changes. */
+function slider(
+  parent: HTMLElement,
+  label: string,
+  value: number,
+  changed: (value: number) => void,
+): void {
+  const holder = el('label', 'hud-pause-volume', parent)
+  holder.append(label)
+  const input = el('input', '', holder)
+  input.type = 'range'
+  input.min = '0'
+  input.max = '1'
+  input.step = '0.1'
+  input.value = String(value)
+  input.addEventListener('change', () => changed(Number(input.value)))
+}
+
+/** A labelled checkbox that calls back when it changes. */
+function checkbox(
+  parent: HTMLElement,
+  label: string,
+  on: boolean,
+  changed: (on: boolean) => void,
+): void {
+  const holder = el('label', 'hud-pause-switch', parent)
+  const input = el('input', '', holder)
+  input.type = 'checkbox'
+  input.checked = on
+  holder.append(label)
+  input.addEventListener('change', () => changed(input.checked))
+}
+
+/** The pause button's two bars, in SVG. */
+function pauseGlyph(): SVGSVGElement {
+  const namespace = 'http://www.w3.org/2000/svg'
+  const glyph = document.createElementNS(namespace, 'svg')
+  glyph.setAttribute('viewBox', '0 0 12 12')
+  glyph.setAttribute('aria-hidden', 'true')
+  glyph.setAttribute('shape-rendering', 'crispEdges')
+  for (const x of [2, 7]) {
+    const bar = document.createElementNS(namespace, 'rect')
+    bar.setAttribute('x', String(x))
+    bar.setAttribute('y', '1')
+    bar.setAttribute('width', '3')
+    bar.setAttribute('height', '9')
+    glyph.append(bar)
+  }
+  return glyph
 }

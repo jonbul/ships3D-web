@@ -19,6 +19,45 @@ Homing missiles. Needs ships-go-3d 0.9.0.
 - Every player sees the missiles, with a smoke trail. In English, Spanish
   and Basque.
 
+Version 0.9.0 - 2026-10-20
+------------------
+What the Nintendo 3DS version had and the browser didn't, so both feel like
+the same game.
+
+- Sound, made in code with the Web Audio API (no files): shots, yours and
+  others' (quieter), hits, explosions, the force field, menu clicks, a looping
+  chiptune track and the engine's hum, which rises with the speed. Volumes for
+  effects and music on the Play page, remembered in the browser. Browsers only
+  allow sound after a click, so it starts with Launch.
+- The world's edge is a force field: as you near it, the face of its grid
+  nearest you fills in, more and more, and the camera draws back.
+- Running into the edge flashes the struck face, sends a blue shock wave
+  across the field, throws sparks and shakes the camera.
+- The copilot, a little robot, warns that you're leaving the combat arena.
+  Keep heading out and it takes the helm: it turns you back toward the middle,
+  softly, with your controls and guns set aside until you face inward.
+- Being hit flashes the screen's edge red and shakes the camera a little.
+- The hangar: on the Play page your ship turns on a platform floating in
+  space, lit by sweeping spotlights. The arrows, the arrow keys or a swipe go
+  through the ships, Enter launches. The lists of ships stay below it.
+- The 3DS's pixel-art look across the site: pixel fonts (VT323, Silkscreen,
+  Press Start 2P, under the OFL, served with the site), windows of night-blue
+  glass with a light edge and a hard shadow, a sky-blue accent.
+- Playing feels like the 3DS game: the Play page fills the screen with live
+  space and pixel-art windows. Choose the mode (big icons, the arrow keys and
+  Enter, or a click), then the ship in the hangar, then launch. Settings
+  (volumes, and steering on a phone) are behind the gear.
+- A title screen first, as on the 3DS: the name large over space, a ship
+  crossing it with a barrel roll, and a blinking prompt.
+- Blasts throw tumbling debris; a crash into the edge throws blue sparks.
+- Settings, and the pause menu, add the 3DS's handling: fine aim (the stick
+  softer near its centre) and whether up raises the nose. The pause menu also
+  shows your kills and deaths.
+- In the game, life is the 3DS's bar at the top left: a heart and ten charges,
+  red and beating when low. Escape, P or the pause button opens the pause
+  menu: Resume, the volumes, and Leave (which moved there). The ship flies on
+  straight and holds its fire while it is open.
+
 Version 0.8.0 - 2026-10-20
 ------------------
 Import 3D models into a ship. Needs ships-go-3d 0.8.0.

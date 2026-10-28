@@ -11,10 +11,15 @@ import {
 
 import { t } from '@/i18n'
 import { buildShip, scaleShip } from '@/shared/shipMesh'
+import { Autopilot } from './autopilot'
+import { edgeNearness } from './edge'
 import { Effects } from './effects'
 import { FORWARD, UP, segmentHitsSphere, stepFlight, velocityOf, type FlightState } from './flight'
+import { ForceField } from './forceField'
+import { handled, handling } from './handling'
 import { Hud, type Marker, type ScoreRow } from './hud'
 import { Hull } from './hull'
+import { shake } from './impact'
 import { CombinedInput, KeyboardMouseInput, type InputSource, type InputState } from './input'
 import {
   lockProgress,
@@ -40,6 +45,7 @@ import {
   type V3,
 } from './protocol'
 import { Radar } from './radar'
+import { sound } from './sound'
 import { TouchInput, type TouchMode } from './touchInput'
 import { aimFrom, aimQuaternion, buildTurret, stepAim, type Aim } from './turret'
 import { World } from './world'
@@ -74,6 +80,21 @@ const MAX_EXTRAPOLATION = 0.5
 const REMOTE_SMOOTHING = 12
 const CAMERA_POSITION_SMOOTHING = 6
 const CAMERA_ROTATION_SMOOTHING = 8
+/** How much farther back the camera sits at the world's edge, in its usual distances. */
+const CAMERA_EDGE_PULL_BACK = 1.6
+/** How near the edge the copilot warns that we're leaving the arena. */
+const COPILOT_WARNS_AT = 0.35
+/** How close to the world's radius counts as touching its edge. */
+const EDGE_TOUCH_SHARE = 0.9995
+/** How much a hit shakes the camera, as a share of a crash's shake. */
+const HIT_SHAKE_SHARE = 0.45
+/** The sparks of a crash into the edge: the force field's blue. */
+const EDGE_SPARK_COLOUR = 0x8fe3ff
+/** Others' shots and hits, quieter than ours. */
+const OTHER_SHOTS_VOLUME = 0.45
+const OTHER_HITS_VOLUME = 0.6
+/** No stick and no throttle: the ship flies on as it was. */
+const IDLE_CONTROLS = { pitch: 0, yaw: 0, roll: 0, throttle: 0 }
 /** Gap, in CSS pixels, between the radar and the edges of the screen. */
 const RADAR_MARGIN = 16
 /**
@@ -152,6 +173,15 @@ export class Game {
   private readonly effects: Effects
   private readonly resizeObserver: ResizeObserver
   private world: World | null = null
+  private forceField: ForceField | null = null
+  private readonly autopilot = new Autopilot()
+  /** When, in seconds, our ship last ran into the world's edge, and was last hit; 0 before any. */
+  private edgeHitAt = 0
+  private hitAt = 0
+  private touchingEdge = false
+  /** The pause menu is open: the ship flies on straight and holds its fire. */
+  private paused = false
+  private readonly shakeOffset = new Vector3()
   private readonly radar = new Radar()
 
   private settings: Settings | null = null
@@ -219,6 +249,8 @@ export class Game {
       this.root,
       {
         onLeave: () => this.exit(),
+        onPause: () => this.setPaused(true),
+        onResume: () => this.setPaused(false),
         onRespawn: () => this.requestRespawn(),
         onRadarTap: () => this.radar.cycle(),
         onMissile: () => (this.missileRequested = true),
@@ -245,6 +277,7 @@ export class Game {
     }
     this.flightHint = options.touch ? t.value.game.touchHint : t.value.game.hint
     window.addEventListener('keydown', this.onKeyDown)
+    document.addEventListener('pointerlockchange', this.onPointerLockChange)
     document.addEventListener('visibilitychange', this.onVisibilityChange)
 
     this.resizeObserver = new ResizeObserver(() => this.resize())
@@ -263,14 +296,17 @@ export class Game {
 
     this.lastFrameTime = performance.now()
     this.frame = requestAnimationFrame(this.loop)
+    sound.playMusic(true)
   }
 
   destroy(): void {
     if (this.destroyed) return
     this.destroyed = true
     cancelAnimationFrame(this.frame)
+    sound.stop()
     clearTimeout(this.hintTimer)
     window.removeEventListener('keydown', this.onKeyDown)
+    document.removeEventListener('pointerlockchange', this.onPointerLockChange)
     document.removeEventListener('visibilitychange', this.onVisibilityChange)
     this.resizeObserver.disconnect()
     this.connection.close()
@@ -279,6 +315,7 @@ export class Game {
     this.effects.dispose()
     this.radar.dispose()
     this.world?.dispose()
+    this.forceField?.dispose()
     // The mothership's and turrets' meshes are shared like ship parts.
     // Ship meshes share geometries and materials owned by shipMesh.ts,
     // which must outlive this game: only the renderer's GPU copies go.
@@ -334,6 +371,7 @@ export class Game {
     this.settings = settings
     this.myId = id
     this.world ??= new World(this.scene, settings.worldRadius)
+    this.forceField ??= new ForceField(this.scene, settings.worldRadius)
     for (const player of players) {
       if (player.id === id) {
         this.me = this.createShip(player, true)
@@ -477,6 +515,7 @@ export class Game {
     // A hidden tab renders nothing, so bullets would only pile up and then
     // all fly at once on return (a lesson from the 2D game).
     if (document.hidden || !this.settings) return
+    sound.play('laser', OTHER_SHOTS_VOLUME)
     const position = new Vector3().fromArray(p)
     const direction = new Vector3().fromArray(d).normalize()
     this.otherBullets.set(id, {
@@ -526,6 +565,11 @@ export class Game {
     const ship = target === this.myId ? this.me : this.remotes.get(target)
     if (!ship) return
     ship.info.life = life
+    sound.play('hit', ship === this.me ? 1 : OTHER_HITS_VOLUME)
+    if (ship === this.me) {
+      this.hitAt = performance.now() / 1000
+      this.hud.flashHit()
+    }
     if (ship === this.me && this.settings) this.hud.setLife(life, this.settings.maxLife)
     if (!document.hidden) {
       this.effects.explosion(ship.group.position, missile ? 5 : 1.5, missile ? 0xff8a3d : 0xffe082)
@@ -541,7 +585,8 @@ export class Game {
     victim.info.dead = true
     victim.group.visible = false
     if (!document.hidden && this.settings) {
-      this.effects.explosion(victim.group.position, this.settings.shipRadius * 3)
+      this.effects.blast(victim.group.position, this.settings.shipRadius * 3)
+      sound.play('explosion')
     }
     this.hud.message(
       killer
@@ -565,6 +610,7 @@ export class Game {
       this.flight.quaternion.fromArray(q)
       this.flight.speed = 0
       this.alive = true
+      this.autopilot.steering = false
       this.me.group.visible = true
       this.placeCameraBehind()
       this.hud.hideDeath()
@@ -669,7 +715,8 @@ export class Game {
   }
 
   private update(dt: number, now: number, settings: Settings, me: Ship): void {
-    const input = this.input.read(dt)
+    // The stick shaped by the handling chosen in Settings: fine aim, and which way is up.
+    const input = handled(this.input.read(dt), handling)
 
     if (this.result) {
       // The round is over: nothing more to fly or shoot.
@@ -689,11 +736,22 @@ export class Game {
           Math.min(1, gap / (settings.acceleration * SPEED_TARGET_RESPONSE)),
         )
       }
-      stepFlight(this.flight, input, settings, dt)
+      // Too near the edge and heading out, the copilot takes the helm (and the guns).
+      const controls = this.paused
+        ? IDLE_CONTROLS
+        : this.autopilot.controls(input, this.flight, settings.worldRadius, settings.maxSpeed)
+      stepFlight(this.flight, controls, settings, dt)
+      this.watchEdge(now, settings)
       me.group.position.copy(this.flight.position)
       me.group.quaternion.copy(this.flight.quaternion)
       this.checkCrash(now, settings)
-      if (input.fire && now - this.lastFire >= settings.fireCooldownMs) this.fire(now, settings)
+      if (
+        input.fire &&
+        !this.paused &&
+        !this.autopilot.steering &&
+        now - this.lastFire >= settings.fireCooldownMs
+      )
+        this.fire(now, settings)
       this.updateLock(dt, now, settings)
       if (now - this.lastStateSent >= 1000 / settings.tickRate) this.sendState(now)
     } else {
@@ -701,6 +759,8 @@ export class Game {
       this.hud.showDeath(this.killerName, left)
     }
 
+    const flying = this.alive && !this.seat && !this.result
+    sound.runEngine(flying, Math.abs(this.flight.speed) / settings.maxSpeed)
     if (this.result || !this.alive) this.resetLock()
     this.missileRequested = false
 
@@ -713,9 +773,11 @@ export class Game {
     // below were projected with last frame's camera.
     this.camera.updateMatrixWorld()
     this.world?.update(this.camera.position)
+    this.forceField?.update(this.flight.position)
+    this.forceField?.showCrash(now / 1000)
 
     this.hud.setSpeed(this.flight.speed)
-    this.hud.setBoundaryWarning(this.flight.position.length() > settings.worldRadius * 0.92)
+    this.hud.setCopilot(this.copilotWords(settings))
     this.hud.setMarkers(this.markers())
     this.showLock(now, settings)
     this.radar.update(this.flight.position, this.flight.quaternion, this.contacts())
@@ -788,6 +850,7 @@ export class Game {
 
   private fire(now: number, settings: Settings): void {
     this.lastFire = now
+    sound.play('laser')
     const direction = FORWARD.clone().applyQuaternion(this.flight.quaternion)
     const position = this.flight.position
       .clone()
@@ -1046,8 +1109,11 @@ export class Game {
       this.camera.lookAt(this.cameraEye.copy(this.camera.position).addScaledVector(forward, 100))
       return
     }
+    // Near the world's edge the camera draws back, as if something were wrong.
+    const back =
+      1 + CAMERA_EDGE_PULL_BACK * edgeNearness(this.flight.position, settings.worldRadius)
     this.cameraEye
-      .set(0, r * 1.3, -r * 3.6)
+      .set(0, r * 1.3 * back, -r * 3.6 * back)
       .applyQuaternion(q)
       .add(this.flight.position)
     this.cameraTarget
@@ -1068,6 +1134,74 @@ export class Game {
       this.cameraQuaternion,
       1 - Math.exp(-CAMERA_ROTATION_SMOOTHING * dt),
     )
+    this.shakeCamera()
+  }
+
+  /**
+   * Shakes the camera across and up and down, as it sees them, after a crash
+   * into the edge or a hit; a hit less.
+   */
+  private shakeCamera(): void {
+    const now = performance.now() / 1000
+    const crashed = this.edgeHitAt >= this.hitAt
+    const offset = shake(now - (crashed ? this.edgeHitAt : this.hitAt))
+    const strength = crashed ? 1 : HIT_SHAKE_SHARE
+    if (offset.across === 0 && offset.up === 0) {
+      return
+    }
+    this.shakeOffset
+      .set(offset.across * strength, offset.up * strength, 0)
+      .applyQuaternion(this.camera.quaternion)
+    this.camera.position.add(this.shakeOffset)
+  }
+
+  /** Notes when our ship runs into the world's edge anew: the flight model holds it on the edge. */
+  private watchEdge(now: number, settings: Settings): void {
+    const touching = this.flight.position.length() >= settings.worldRadius * EDGE_TOUCH_SHARE
+    if (touching && !this.touchingEdge) {
+      this.edgeHitAt = now / 1000
+      this.forceField?.crash(this.flight.position, this.edgeHitAt)
+      sound.play('shield')
+      if (!document.hidden) {
+        this.effects.explosion(this.flight.position, settings.shipRadius * 1.5, EDGE_SPARK_COLOUR)
+        this.effects.sparks(this.flight.position, EDGE_SPARK_COLOUR)
+      }
+    }
+    this.touchingEdge = touching
+  }
+
+  /** Opens or closes the pause menu. */
+  private setPaused(paused: boolean): void {
+    if (paused === this.paused) {
+      return
+    }
+    this.paused = paused
+    this.hud.showPause(paused, this.me?.info.kills ?? 0, this.me?.info.deaths ?? 0)
+    sound.play(paused ? 'choose' : 'back')
+    if (paused && document.pointerLockElement) {
+      document.exitPointerLock()
+    }
+  }
+
+  /** Letting go of the mouse (Escape, while it steers) opens the pause menu, as on the 3DS's START. */
+  private onPointerLockChange = (): void => {
+    if (!document.pointerLockElement && this.alive && !this.result) {
+      this.setPaused(true)
+    }
+  }
+
+  /** What the copilot says now: it warns near the edge, and says so while it has the helm. */
+  private copilotWords(settings: Settings): string | null {
+    if (!this.alive || this.seat) {
+      return null
+    }
+    if (this.autopilot.steering) {
+      return t.value.game.copilotTakingHelm
+    }
+    if (edgeNearness(this.flight.position, settings.worldRadius) >= COPILOT_WARNS_AT) {
+      return t.value.game.copilotLeaving
+    }
+    return null
   }
 
   private placeCameraBehind(): void {
@@ -1176,6 +1310,10 @@ export class Game {
   }
 
   private onKeyDown = (event: KeyboardEvent): void => {
+    if (event.code === 'Escape' || event.code === 'KeyP') {
+      this.setPaused(!this.paused)
+      return
+    }
     if (event.code === 'KeyF' && !event.repeat) this.missileRequested = true
     if (event.code === 'Enter' && !this.alive && this.settings) {
       if (performance.now() >= this.diedAt + this.settings.respawnDelayMs) this.requestRespawn()

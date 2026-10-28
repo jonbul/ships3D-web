@@ -91,7 +91,7 @@ function formatDate(ms?: number): string {
   flex-direction: column;
   padding: 0.7rem;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius);
   background: var(--panel);
 }
 .card h3 {

@@ -31,7 +31,7 @@ import { t } from '@/i18n'
 .alert {
   position: relative;
   padding: 0.6rem 2rem 0.6rem 0.9rem;
-  border-radius: 6px;
+  border-radius: var(--radius);
   background: var(--panel);
   border-left: 4px solid var(--accent);
   box-shadow: 0 4px 16px rgb(0 0 0 / 0.4);

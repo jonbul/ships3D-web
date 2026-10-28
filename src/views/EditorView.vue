@@ -955,10 +955,10 @@ function onKeyDown(event: KeyboardEvent) {
   border-radius: 0;
 }
 .group button:first-child {
-  border-radius: 6px 0 0 6px;
+  border-radius: var(--radius);
 }
 .group button:last-child {
-  border-radius: 0 6px 6px 0;
+  border-radius: var(--radius);
 }
 button.active {
   border-color: var(--accent);
@@ -1005,7 +1005,7 @@ h3 {
   align-items: center;
   gap: 0.4rem;
   padding: 0.25rem 0.4rem;
-  border-radius: 4px;
+  border-radius: var(--radius);
   cursor: pointer;
 }
 .list li.active {
@@ -1038,7 +1038,7 @@ button.icon {
   display: inline-block;
   width: 0.9rem;
   height: 0.9rem;
-  border-radius: 3px;
+  border-radius: var(--radius);
   border: 1px solid var(--border);
 }
 .muted {
@@ -1095,7 +1095,7 @@ button.icon {
   width: 1.5rem;
   height: 1.5rem;
   padding: 0;
-  border-radius: 4px;
+  border-radius: var(--radius);
 }
 .textures {
   display: grid;
@@ -1118,7 +1118,7 @@ button.icon {
 .texture-button {
   aspect-ratio: 1;
   padding: 0;
-  border-radius: 4px;
+  border-radius: var(--radius);
   border: 2px solid var(--border);
 }
 .slider {
