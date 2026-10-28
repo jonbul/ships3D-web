@@ -60,6 +60,9 @@ export class TouchInput implements InputSource {
   private rollLeft = false
   private rollRight = false
   private firing = false
+  // Latched until read, so a tap shorter than a frame still counts.
+  private evading = false
+  private turning = false
   private scores = false
   private sensorTimer: ReturnType<typeof setTimeout> | undefined
 
@@ -126,13 +129,21 @@ export class TouchInput implements InputSource {
       },
     )
 
-    // Fire and roll, for the right thumb.
+    // Fire and roll, for the right thumb, with the evasive roll and the 180°
+    // turn above them.
     const actions = el('div', 'touch-actions', this.root)
-    const rollLeft = el('button', 'touch-roll', actions)
+    const evade = el('button', 'touch-maneuver touch-evade', actions)
+    evade.textContent = text.evade
+    this.hold(evade, (held) => (this.evading ||= held))
+    const turn = el('button', 'touch-maneuver touch-turn', actions)
+    turn.textContent = '180°'
+    turn.setAttribute('aria-label', text.turnAround)
+    this.hold(turn, (held) => (this.turning ||= held))
+    const rollLeft = el('button', 'touch-roll touch-roll-left', actions)
     rollLeft.textContent = '⟲'
     rollLeft.setAttribute('aria-label', text.rollLeft)
     this.hold(rollLeft, (held) => (this.rollLeft = held))
-    const rollRight = el('button', 'touch-roll', actions)
+    const rollRight = el('button', 'touch-roll touch-roll-right', actions)
     rollRight.textContent = '⟳'
     rollRight.setAttribute('aria-label', text.rollRight)
     this.hold(rollRight, (held) => (this.rollRight = held))
@@ -157,15 +168,19 @@ export class TouchInput implements InputSource {
       pitch = deadZone(this.stickY)
       yaw = deadZone(this.stickX)
     }
-    return {
+    const state: InputState = {
       pitch,
       yaw,
       roll: (this.rollRight ? 1 : 0) - (this.rollLeft ? 1 : 0),
       throttle: 0,
       speedTarget: this.throttle,
       fire: this.firing,
+      evade: this.evading,
+      turn: this.turning,
       scoreboard: this.scores,
     }
+    this.evading = this.turning = false
+    return state
   }
 
   /**

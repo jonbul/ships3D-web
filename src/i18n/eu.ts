@@ -258,9 +258,9 @@ const eu: Messages = {
   game: {
     leave: 'Irten',
     leavingZone: 'Borroka-eremutik irteten ari zara',
-    hint: 'Egin klik saguarekin gidatzeko · W/S azeleratu · A/D albo-biraketa · geziak biratu · Zuriunea tiro · F misila (jomuga finkatuta) · Tab markagailua · +/- radarraren irismena',
+    hint: 'Egin klik saguarekin gidatzeko · W/S azeleratu · A/D albo-biraketa · geziak biratu · Zuriunea tiro · F misila (jomuga finkatuta) · E saihesteko bira · Q 180°-ko buelta · Tab markagailua · +/- radarraren irismena',
     touchHint:
-      'Ezkerrean: azeleragailua · joysticka edo okertu gidatzeko · ⟲ ⟳ albo-biraketa · SU · MISILA jomuga finkatuta · ukitu radarra irismena aldatzeko',
+      'Ezkerrean: azeleragailua · joysticka edo okertu gidatzeko · ⟲ ⟳ albo-biraketa · SU · MISILA jomuga finkatuta · SAIHESTU bira eginez · 180° buelta · ukitu radarra irismena aldatzeko',
     radarTitle: 'Aldatu radarraren irismena (+ / -)',
     player: 'Jokalaria',
     kills: 'Botatakoak',
@@ -313,6 +313,9 @@ const eu: Messages = {
     missile: 'MISILA',
     missileReloading: (seconds: number) => `MISILA ${seconds}`,
     missileIncoming: 'Misil bat zure atzetik!',
+    evade: 'SAIHESTU',
+    turnAround: 'Buelta eman (180°)',
+    missileDodged: 'Misila saihestuta!',
   },
 }
 

@@ -11,11 +11,13 @@ import {
 
 import { t } from '@/i18n'
 import { buildShip, scaleShip } from '@/shared/shipMesh'
+import { AlarmSound } from './alarm'
 import { Effects } from './effects'
 import { FORWARD, UP, segmentHitsSphere, stepFlight, velocityOf, type FlightState } from './flight'
 import { Hud, type Marker, type ScoreRow } from './hud'
 import { Hull } from './hull'
 import { CombinedInput, KeyboardMouseInput, type InputSource, type InputState } from './input'
+import { startManeuver, stepManeuver, type Maneuver, type ManeuverKind } from './maneuver'
 import {
   lockProgress,
   newLock,
@@ -129,6 +131,8 @@ interface Missile {
   direction: Vector3
   /** The player it homes on, or MOTHERSHIP. */
   target: string
+  /** Shaken off by an evasive roll: it flies straight on, harmless. */
+  lost?: boolean
   expiresAt: number
 }
 
@@ -178,6 +182,16 @@ export class Game {
   private lastMissile = -Infinity
   /** The missile button (or F) was pressed; fired on the next frame. */
   private missileRequested = false
+  /** An evasive roll or a 180° turn in progress. */
+  private maneuver: Maneuver | null = null
+  /** performance.now() when each maneuver was last started. */
+  private readonly lastManeuver: Record<ManeuverKind, number> = {
+    roll: -Infinity,
+    turn: -Infinity,
+  }
+  /** The evade and turn controls as last read, to act once per press. */
+  private readonly held = { evade: false, turn: false }
+  private readonly alarm = new AlarmSound()
   private lastStateSent = 0
   private lastCrashReport = 0
 
@@ -278,6 +292,7 @@ export class Game {
     this.hud.destroy()
     this.effects.dispose()
     this.radar.dispose()
+    this.alarm.dispose()
     this.world?.dispose()
     // The mothership's and turrets' meshes are shared like ship parts.
     // Ship meshes share geometries and materials owned by shipMesh.ts,
@@ -307,6 +322,8 @@ export class Game {
         return this.onRemoteFire(message.id, message.p, message.d)
       case 'missile':
         return this.onRemoteMissile(message.id, message.target, message.p, message.d)
+      case 'missileLost':
+        return this.onMissileLost(message.id)
       case 'damage':
         return this.onDamage(message.target, message.from, message.bulletId, message.life)
       case 'died':
@@ -433,6 +450,8 @@ export class Game {
     this.resetLock()
     this.lastMissile = -Infinity
     this.missileRequested = false
+    this.maneuver = null
+    this.lastManeuver.roll = this.lastManeuver.turn = -Infinity
     if (this.mothership) this.scene.remove(this.mothership.group)
     this.mothership = null
     this.alive = false
@@ -500,6 +519,17 @@ export class Game {
       target,
       expiresAt: performance.now() + this.settings.missileTtlMs,
     })
+  }
+
+  /** A missile was shaken off: it flies straight on, and can't hit any more. */
+  private onMissileLost(id: string): void {
+    const own = `${this.myId}:`
+    const missile = id.startsWith(own)
+      ? this.myMissiles.get(id.slice(own.length))
+      : this.otherMissiles.get(id)
+    if (!missile) return
+    missile.lost = true
+    if (missile.target === this.myId) this.hud.message(t.value.game.missileDodged)
   }
 
   private onDamage(target: string, from: string, bulletId: string, life: number): void {
@@ -689,7 +719,15 @@ export class Game {
           Math.min(1, gap / (settings.acceleration * SPEED_TARGET_RESPONSE)),
         )
       }
+      this.startManeuvers(input, now, settings)
+      if (this.maneuver) {
+        // The maneuver has the stick; the throttle is still ours.
+        input.pitch = input.yaw = input.roll = 0
+      }
       stepFlight(this.flight, input, settings, dt)
+      if (this.maneuver && !stepManeuver(this.maneuver, this.flight.quaternion, dt)) {
+        this.maneuver = null
+      }
       me.group.position.copy(this.flight.position)
       me.group.quaternion.copy(this.flight.quaternion)
       this.checkCrash(now, settings)
@@ -701,7 +739,10 @@ export class Game {
       this.hud.showDeath(this.killerName, left)
     }
 
-    if (this.result || !this.alive) this.resetLock()
+    if (this.result || !this.alive) {
+      this.resetLock()
+      this.maneuver = null
+    }
     this.missileRequested = false
 
     this.updateRemotes(dt, now)
@@ -876,6 +917,39 @@ export class Game {
     })
   }
 
+  // --- Maneuvers ---------------------------------------------------------------
+
+  /**
+   * Starts an evasive roll or a 180° turn when its key or button is pressed,
+   * if it has reloaded and no other maneuver is under way. A roll done with
+   * an enemy missile close behind shakes it off, once the server agrees.
+   */
+  private startManeuvers(input: InputState, now: number, settings: Settings): void {
+    const pressed = {
+      evade: input.evade && !this.held.evade,
+      turn: input.turn && !this.held.turn,
+    }
+    this.held.evade = input.evade
+    this.held.turn = input.turn
+    if (this.maneuver) return
+    if (pressed.evade && now - this.lastManeuver.roll >= settings.evadeCooldownMs) {
+      this.lastManeuver.roll = now
+      this.maneuver = startManeuver('roll', this.flight.quaternion)
+      for (const [id, missile] of this.otherMissiles) {
+        if (
+          missile.target === this.myId &&
+          !missile.lost &&
+          missile.position.distanceTo(this.flight.position) <= settings.dodgeRange
+        ) {
+          this.connection.send({ type: 'dodge', missileId: id })
+        }
+      }
+    } else if (pressed.turn && now - this.lastManeuver.turn >= settings.turnCooldownMs) {
+      this.lastManeuver.turn = now
+      this.maneuver = startManeuver('turn', this.flight.quaternion)
+    }
+  }
+
   /** Where a missile's target is now, as drawn here; null once it is gone or dead. */
   private missileTarget(target: string): Vector3 | null {
     if (target === MOTHERSHIP) return this.mothership?.group.position ?? null
@@ -890,13 +964,14 @@ export class Game {
    * there, and the damage message tells what they did.
    */
   private updateMissiles(dt: number, now: number, settings: Settings): void {
-    let incoming = false
+    // How close the nearest missile after us is, from 0 (none) to 1.
+    let danger = 0
     for (const [mine, missiles] of [
       [true, this.myMissiles],
       [false, this.otherMissiles],
     ] as const) {
       for (const [id, missile] of missiles) {
-        const target = this.missileTarget(missile.target)
+        const target = missile.lost ? null : this.missileTarget(missile.target)
         missile.previous.copy(missile.position)
         stepMissile(missile, target, settings, dt)
         this.effects.moveMissile(missile.group, missile.position, missile.direction, dt)
@@ -911,7 +986,12 @@ export class Game {
             settings.shipRadius,
           )
         }
-        if (!mine && missile.target === this.myId && target) incoming = true
+        if (!mine && missile.target === this.myId && target) {
+          const distance = missile.position.distanceTo(target)
+          // Some alarm as soon as it is fired; full in its last two seconds.
+          const closeness = 1 - (distance - settings.dodgeRange) / (settings.missileSpeed * 2)
+          danger = Math.max(danger, 0.15, Math.min(1, closeness))
+        }
         if (struck && mine) {
           this.connection.send({ type: 'hit', bulletId: id, target: missile.target })
           if (!document.hidden) this.effects.explosion(missile.position, 6, 0xff8a3d)
@@ -922,7 +1002,8 @@ export class Game {
         }
       }
     }
-    this.hud.setMissileWarning(incoming)
+    this.hud.setMissileAlarm(danger)
+    this.alarm.update(danger, now)
   }
 
   private clearMissiles(): void {
@@ -931,7 +1012,7 @@ export class Game {
     }
     this.myMissiles.clear()
     this.otherMissiles.clear()
-    this.hud.setMissileWarning(false)
+    this.hud.setMissileAlarm(0)
   }
 
   /** The lock reticle around the target, and the missile button once locked. */

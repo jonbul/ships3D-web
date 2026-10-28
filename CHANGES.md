@@ -1,5 +1,24 @@
 CHANGES
 =======
+Version 0.11.0 - 2026-10-28
+------------------
+Escaping missiles. Needs ships-go-3d 0.10.0.
+
+- Missile alarm: while an enemy missile is after you, the whole screen glows
+  and pulses red, and beeps, both faster and stronger as it closes in (full
+  in its last moments). "Missile incoming!" shows as before.
+- Evasive roll: E on a keyboard, EVADE on a phone. A quick barrel roll that,
+  done in the last moment (the missile within 200 u, when the alarm is at
+  its strongest), shakes the missile off: it flies straight past, harmless,
+  and "Missile shaken off!" shows. Rolling too early wastes it: it reloads
+  in 3 seconds.
+- 180° turn: Q on a keyboard, 180° on a phone. Half a loop and half a roll
+  in 0.6 seconds, coming out upright and flying back the way you came.
+  Every 4 seconds.
+- During either maneuver the ship flies itself; the throttle is still yours.
+- A tap shorter than a frame on these buttons or keys still counts.
+- In English, Spanish and Basque.
+
 Version 0.10.0 - 2026-10-27
 ------------------
 Homing missiles. Needs ships-go-3d 0.9.0.
