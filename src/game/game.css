@@ -221,6 +221,27 @@
 
 /* --- Lock-on and missiles ------------------------------------------------ */
 
+/* The missile alarm: a red glow over the whole screen, strongest at the edges,
+   pulsing faster and brighter (--danger, 0 to 1) as the missile closes in. */
+.hud-alarm {
+  position: absolute;
+  inset: 0;
+  --danger: 0;
+  background:
+    radial-gradient(ellipse at center, transparent 30%, rgb(255 0 0 / 0.6) 100%),
+    rgb(255 0 0 / calc(0.1 + 0.2 * var(--danger)));
+  box-shadow: inset 0 0 0 calc(3px + 5px * var(--danger)) rgb(255 40 40 / 0.85);
+  animation: hud-alarm-pulse 0.7s ease-in-out infinite alternate;
+}
+@keyframes hud-alarm-pulse {
+  from {
+    opacity: calc(0.35 + 0.4 * var(--danger));
+  }
+  to {
+    opacity: calc(0.1 + 0.2 * var(--danger));
+  }
+}
+
 /* Centred on the target by its transform (translate, then scale as the lock
    closes in). */
 .hud-lock {
@@ -461,6 +482,7 @@
   display: grid;
   grid-template-columns: auto auto;
   grid-template-areas:
+    'evade turn'
     'left right'
     'fire fire';
   gap: 0.5rem;
@@ -472,8 +494,24 @@
   border-radius: 50%;
   font-size: 1.5rem;
 }
-.touch-roll:first-child {
+.touch-roll-left {
   grid-area: left;
+}
+.touch-roll-right {
+  grid-area: right;
+}
+.touch-maneuver {
+  width: 3.4rem;
+  height: 2.4rem;
+  border-radius: 1.2rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+.touch-evade {
+  grid-area: evade;
+}
+.touch-turn {
+  grid-area: turn;
 }
 .touch-fire {
   grid-area: fire;
