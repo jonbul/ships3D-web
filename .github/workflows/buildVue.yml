@@ -1,6 +1,7 @@
 # Lints, type-checks, tests and builds ships-vue-3d, then publishes the built
-# site (dist/, zipped) as a GitHub release: `latest-snapshot` for PRs and
-# main, `v<version>` (from metadata.properties) for main.
+# site (dist/, zipped) and the Android app (APK) as a GitHub release:
+# `latest-snapshot` for PRs and main, `v<version>` (from metadata.properties)
+# for main.
 
 name: Vue
 
@@ -17,6 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      pull-requests: write
     steps:
     - uses: actions/checkout@v7
 
@@ -43,18 +45,64 @@ jobs:
     - name: Build
       run: npm run build
 
+    - name: Get version
+      id: version
+      run: echo "version=$(grep '^version=' metadata.properties | cut -d'=' -f2)" >> $GITHUB_OUTPUT
+
+    # The Android app (see capacitor.config.ts): it opens the production site.
+    # Signed with the release key when the ANDROID_KEYSTORE_BASE64 secret is
+    # set, otherwise with a throwaway debug key, which installs fine by hand
+    # but can't go on the Play Store and can't update an app signed with
+    # another key.
+    - name: Set up Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: temurin
+        java-version: 21
+
+    - name: Build APK
+      env:
+        ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+      run: |
+        npx cap sync android
+        if [ -n "$ANDROID_KEYSTORE_BASE64" ]; then
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+          export ANDROID_KEYSTORE="$RUNNER_TEMP/release.jks"
+          (cd android && ./gradlew --no-daemon assembleRelease)
+          cp android/app/build/outputs/apk/release/app-release.apk ships-3d.apk
+        else
+          (cd android && ./gradlew --no-daemon assembleDebug)
+          cp android/app/build/outputs/apk/debug/app-debug.apk ships-3d.apk
+        fi
+
+    - name: Upload APK artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ships-3d-apk
+        path: ships-3d.apk
+
+    # The same APK under the name of each channel it is published to.
+    - name: Name APKs
+      run: |
+        cp ships-3d.apk ships-3d-snapshot.apk
+        cp ships-3d.apk ships-3d-release.apk
+
+    # The site serves the APK too, at /ships-3d.apk: a download from the
+    # site's own server works on phones whose browser fails to save GitHub's
+    # release downloads. Added after `cap sync`, so the app doesn't carry it.
     - name: Package
-      run: cd dist && zip -r ../ships-vue-3d.zip .
+      run: |
+        cp ships-3d.apk dist/
+        cd dist && zip -r ../ships-vue-3d.zip .
 
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
         name: ships-vue-3d
         path: dist
-
-    - name: Get version
-      id: version
-      run: echo "version=$(grep '^version=' metadata.properties | cut -d'=' -f2)" >> $GITHUB_OUTPUT
 
     - name: Create snapshot
       if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
@@ -63,7 +111,39 @@ jobs:
         tag_name: latest-snapshot
         name: Latest Snapshot
         prerelease: true
-        files: ships-vue-3d.zip
+        files: |
+          ships-vue-3d.zip
+          ships-3d-snapshot.apk
+
+    # One comment per PR, updated by each run, so the APK is a tap away from
+    # the PR. Not on fork PRs, whose token can't comment.
+    - name: Link APK on the PR
+      if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const marker = '<!-- ships-3d-apk -->'
+          const base = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}`
+          const sha = context.payload.pull_request.head.sha.slice(0, 7)
+          const body = [
+            marker,
+            `📱 **Android APK** for ${sha}:`,
+            `- [ships-3d-snapshot.apk](${base}/releases/download/latest-snapshot/ships-3d-snapshot.apk) (latest-snapshot release)`,
+            `- [Workflow run](${base}/actions/runs/${context.runId}) (artifact \`ships-3d-apk\`, needs GitHub login)`,
+            '',
+            'After deploying the snapshot, the site serves it too at `/ships-3d.apk`.',
+          ].join('\n')
+          const { data: comments } = await github.rest.issues.listComments({
+            ...context.repo,
+            issue_number: context.issue.number,
+            per_page: 100,
+          })
+          const existing = comments.find((c) => c.body?.startsWith(marker))
+          if (existing) {
+            await github.rest.issues.updateComment({ ...context.repo, comment_id: existing.id, body })
+          } else {
+            await github.rest.issues.createComment({ ...context.repo, issue_number: context.issue.number, body })
+          }
 
     - name: Create release
       if: github.ref == 'refs/heads/main'
@@ -71,4 +151,6 @@ jobs:
       with:
         tag_name: v${{ steps.version.outputs.version }}
         name: Release v${{ steps.version.outputs.version }}
-        files: ships-vue-3d.zip
+        files: |
+          ships-vue-3d.zip
+          ships-3d-release.apk

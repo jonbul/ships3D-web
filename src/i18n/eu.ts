@@ -272,9 +272,9 @@ const eu: Messages = {
     killsAndDeaths: (kills: number, deaths: number) => `${kills} bota · ${deaths} galdu`,
     copilotLeaving: 'Borroka-arenatik irteten ari gara, jauna!',
     copilotTakingHelm: 'Lema hartzen dut, jauna. Arenara itzuliko gara!',
-    hint: 'Egin klik saguarekin gidatzeko · W/S azeleratu · A/D albo-biraketa · geziak biratu · Zuriunea tiro · Tab markagailua · +/- radarraren irismena',
+    hint: 'Egin klik saguarekin gidatzeko · W/S azeleratu · A/D albo-biraketa · geziak biratu · Zuriunea tiro · F misila (jomuga finkatuta) · Tab markagailua · +/- radarraren irismena',
     touchHint:
-      'Ezkerrean: azeleragailua · joysticka edo okertu gidatzeko · ⟲ ⟳ albo-biraketa · SU · ukitu radarra irismena aldatzeko',
+      'Ezkerrean: azeleragailua · joysticka edo okertu gidatzeko · ⟲ ⟳ albo-biraketa · SU · MISILA jomuga finkatuta · ukitu radarra irismena aldatzeko',
     radarTitle: 'Aldatu radarraren irismena (+ / -)',
     player: 'Jokalaria',
     kills: 'Botatakoak',
@@ -321,8 +321,12 @@ const eu: Messages = {
     youLost: 'Galdu duzu',
     backToLobby: (seconds: number) => `${seconds} barru itxarongelara`,
     gunnerHint:
-      'Egin klik saguarekin zuzentzeko · geziak zuzendu · Zuriunea tiro · Tab markagailua',
-    gunnerTouchHint: 'Joysticka edo okertu dorrea zuzentzeko · SU',
+      'Egin klik saguarekin zuzentzeko · geziak zuzendu · Zuriunea tiro · F misila · Tab markagailua',
+    gunnerTouchHint: 'Joysticka edo okertu dorrea zuzentzeko · SU · MISILA jomuga finkatuta',
+    locked: 'FINKATUTA',
+    missile: 'MISILA',
+    missileReloading: (seconds: number) => `MISILA ${seconds}`,
+    missileIncoming: 'Misil bat zure atzetik!',
   },
 }
 

@@ -17,6 +17,26 @@ The API defaults to this page's host on port 3000 (`VITE_API_PORT` changes
 the port, `VITE_API_URL` the whole base URL). `ssl/` is a symlink to the workspace's `../files/ssl`: the
 dev server must be HTTPS because the session cookie is `Secure`.
 
+## Android app
+
+`android/` is a [Capacitor](https://capacitorjs.com) app that opens the
+production site (`https://jonbul.ddns.net:5173`, or `SHIPS_APP_URL` at build
+time; see `capacitor.config.ts`). It is a window onto the site, not a copy, so
+it always runs the deployed version and talks to the API exactly as the site
+does. CI builds it on every run and attaches it to the release (`ships-3d-snapshot.apk` on
+`latest-snapshot`, `ships-3d-release.apk` on `v<version>`).
+The site itself serves it too, at `/ships-3d.apk`.
+
+```bash
+npm run build && npx cap sync android
+cd android && ./gradlew assembleDebug   # needs JDK 21 and the Android SDK
+```
+
+The APK is signed with a throwaway debug key unless the repository has the
+secrets `ANDROID_KEYSTORE_BASE64` (the keystore, base64), `ANDROID_KEYSTORE_PASSWORD`,
+`ANDROID_KEY_ALIAS` and `ANDROID_KEY_PASSWORD`, in which case it is a signed
+release build. Its version comes from `metadata.properties`.
+
 ## Layout
 
 - `src/views/`, `src/components/` — Vue pages: home, login, register,
@@ -33,7 +53,9 @@ dev server must be HTTPS because the session cookie is `Secure`.
   behind `InputSource`: `KeyboardMouseInput` (desktop) and `TouchInput`
   (phones: throttle slider, fire/roll, and a stick or tilt via `tilt.ts`),
   merged by `CombinedInput`. The host turns phone controls on with
-  `options.touch` (GameView does it for a coarse pointer). The protocol (`protocol.ts`) mirrors `ships-go-3d/game/protocol.go`.
+  `options.touch` (GameView does it for a coarse pointer). Locking on and
+  missile homing are pure functions in `missile.ts`; the missile button is
+  the HUD's, for both mouse and touch (and F). The protocol (`protocol.ts`) mirrors `ships-go-3d/game/protocol.go`.
 
 ## Conventions
 

@@ -12,6 +12,17 @@ export interface HudActions {
   onResume(): void
   onRespawn(): void
   onRadarTap(): void
+  onMissile(): void
+}
+
+/** The lock-on reticle, around the target on screen. */
+export interface LockView {
+  /** Screen position in pixels. */
+  x: number
+  y: number
+  /** 0 to 1 while locking on; 1 once locked. */
+  progress: number
+  locked: boolean
 }
 
 export interface ScoreRow {
@@ -89,6 +100,11 @@ export class Hud {
   private readonly resultTitle: HTMLHeadingElement
   private readonly resultText: HTMLParagraphElement
   private readonly resultReturn: HTMLParagraphElement
+  private readonly lock: HTMLDivElement
+  private readonly lockLabel: HTMLSpanElement
+  private readonly missileButton: HTMLButtonElement
+  private readonly missileLabel: HTMLSpanElement
+  private readonly missileWarning: HTMLDivElement
 
   /** `assault`: the assault mode's lobby, round gauges and scoreboard columns. */
   constructor(container: HTMLElement, actions: HudActions, assault = false) {
@@ -121,6 +137,22 @@ export class Hud {
 
     this.feed = el('div', 'hud-feed', this.root)
     el('div', 'hud-crosshair', this.root)
+
+    // Lock-on: a reticle closing in on the target, then the missile button
+    // (pressed with a finger, or the F key).
+    this.lock = el('div', 'hud-lock', this.root)
+    this.lockLabel = el('span', 'hud-lock-label', this.lock)
+    this.lockLabel.textContent = text.locked
+    this.missileButton = el('button', 'hud-missile', this.root)
+    this.missileLabel = el('span', '', this.missileButton)
+    el('span', 'hud-missile-key', this.missileButton).textContent = 'F'
+    // On press, not on click: a click only fires when the finger lifts.
+    this.missileButton.addEventListener('pointerdown', (event) => {
+      event.preventDefault()
+      actions.onMissile()
+    })
+    this.missileWarning = el('div', 'hud-missile-warning', this.root)
+    this.missileWarning.textContent = text.missileIncoming
 
     this.status = el('div', 'hud-status', this.root)
     this.copilot = new Copilot(this.root)
@@ -167,6 +199,9 @@ export class Hud {
     this.round.hidden = true
     this.lobby.hidden = true
     this.result.hidden = true
+    this.lock.hidden = true
+    this.missileButton.hidden = true
+    this.missileWarning.hidden = true
     this.setStatus(text.connecting)
   }
 
@@ -356,6 +391,35 @@ export class Hud {
     label.top = atTop ? `${margin + size}px` : ''
     label.bottom = atTop ? '' : `${margin + size}px`
     this.radarLabel.textContent = `Radar · ${range} u`
+  }
+
+  /** The lock-on reticle; null hides it. */
+  setLock(lock: LockView | null): void {
+    this.lock.hidden = lock === null
+    if (!lock) return
+    // Starts wide and closes in on the target as the lock builds.
+    const scale = lock.locked ? 1 : 2.2 - 1.2 * lock.progress
+    this.lock.style.transform = `translate(${lock.x}px, ${lock.y}px) scale(${scale})`
+    this.lock.classList.toggle('locked', lock.locked)
+  }
+
+  /**
+   * The missile button, shown while locked on: ready, or the seconds until
+   * the missile has reloaded. Null hides it.
+   */
+  setMissile(missile: { secondsLeft: number } | null): void {
+    this.missileButton.hidden = missile === null
+    if (!missile) return
+    const text = t.value.game
+    const ready = missile.secondsLeft <= 0
+    const label = ready ? text.missile : text.missileReloading(Math.ceil(missile.secondsLeft))
+    if (this.missileLabel.textContent !== label) this.missileLabel.textContent = label
+    this.missileButton.disabled = !ready
+  }
+
+  /** "Missile incoming!", while an enemy missile is after us. */
+  setMissileWarning(visible: boolean): void {
+    this.missileWarning.hidden = !visible
   }
 
   setMarkers(markers: Marker[]): void {

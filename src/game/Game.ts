@@ -21,6 +21,14 @@ import { Hud, type Marker, type ScoreRow } from './hud'
 import { Hull } from './hull'
 import { shake } from './impact'
 import { CombinedInput, KeyboardMouseInput, type InputSource, type InputState } from './input'
+import {
+  lockProgress,
+  newLock,
+  stepLock,
+  stepMissile,
+  type LockCandidate,
+  type LockState,
+} from './missile'
 import { Connection } from './net'
 import {
   MOTHERSHIP,
@@ -135,6 +143,16 @@ interface Bullet {
   expiresAt: number
 }
 
+interface Missile {
+  group: Group
+  position: Vector3
+  previous: Vector3
+  direction: Vector3
+  /** The player it homes on, or MOTHERSHIP. */
+  target: string
+  expiresAt: number
+}
+
 /**
  * One game session: a renderer, a websocket and a loop, inside a container
  * element. It depends on nothing but three.js and the DOM - no Vue, no
@@ -183,6 +201,13 @@ export class Game {
   private readonly otherBullets = new Map<string, Bullet>()
   private bulletCounter = 0
   private lastFire = 0
+  private readonly myMissiles = new Map<string, Missile>()
+  private readonly otherMissiles = new Map<string, Missile>()
+  private readonly lock: LockState = newLock()
+  /** performance.now() of our last missile; -Infinity: never fired. */
+  private lastMissile = -Infinity
+  /** The missile button (or F) was pressed; fired on the next frame. */
+  private missileRequested = false
   private lastStateSent = 0
   private lastCrashReport = 0
 
@@ -228,6 +253,7 @@ export class Game {
         onResume: () => this.setPaused(false),
         onRespawn: () => this.requestRespawn(),
         onRadarTap: () => this.radar.cycle(),
+        onMissile: () => (this.missileRequested = true),
       },
       this.assault,
     )
@@ -316,6 +342,8 @@ export class Game {
         return this.onSnapshot(message.players)
       case 'fire':
         return this.onRemoteFire(message.id, message.p, message.d)
+      case 'missile':
+        return this.onRemoteMissile(message.id, message.target, message.p, message.d)
       case 'damage':
         return this.onDamage(message.target, message.from, message.bulletId, message.life)
       case 'died':
@@ -439,6 +467,10 @@ export class Game {
     }
     this.myBullets.clear()
     this.otherBullets.clear()
+    this.clearMissiles()
+    this.resetLock()
+    this.lastMissile = -Infinity
+    this.missileRequested = false
     if (this.mothership) this.scene.remove(this.mothership.group)
     this.mothership = null
     this.alive = false
@@ -495,11 +527,30 @@ export class Game {
     })
   }
 
+  private onRemoteMissile(id: string, target: string, p: V3, d: V3): void {
+    if (document.hidden || !this.settings) return
+    const position = new Vector3().fromArray(p)
+    const direction = new Vector3().fromArray(d).normalize()
+    this.otherMissiles.set(id, {
+      group: this.effects.missile(false, position, direction),
+      position,
+      previous: position.clone(),
+      direction,
+      target,
+      expiresAt: performance.now() + this.settings.missileTtlMs,
+    })
+  }
+
   private onDamage(target: string, from: string, bulletId: string, life: number): void {
     const bullet = this.otherBullets.get(bulletId)
     if (bullet) {
       this.effects.releaseBullet(bullet.mesh)
       this.otherBullets.delete(bulletId)
+    }
+    const missile = this.otherMissiles.get(bulletId)
+    if (missile) {
+      this.effects.releaseMissile(missile.group)
+      this.otherMissiles.delete(bulletId)
     }
     if (target === MOTHERSHIP) {
       if (!this.mothership) return
@@ -507,7 +558,8 @@ export class Game {
       const shooter = from === this.myId ? this.me : this.remotes.get(from)
       if (shooter) shooter.info.hits = (shooter.info.hits ?? 0) + 1
       // Our own hits sparked when the bullet struck; others' spark now.
-      if (bullet && !document.hidden) this.effects.explosion(bullet.position, 2.5, 0xffe082)
+      const struck = bullet?.position ?? missile?.position
+      if (struck && !document.hidden) this.effects.explosion(struck, missile ? 6 : 2.5, 0xffe082)
       return
     }
     const ship = target === this.myId ? this.me : this.remotes.get(target)
@@ -519,7 +571,9 @@ export class Game {
       this.hud.flashHit()
     }
     if (ship === this.me && this.settings) this.hud.setLife(life, this.settings.maxLife)
-    if (!document.hidden) this.effects.explosion(ship.group.position, 1.5, 0xffe082)
+    if (!document.hidden) {
+      this.effects.explosion(ship.group.position, missile ? 5 : 1.5, missile ? 0xff8a3d : 0xffe082)
+    }
   }
 
   private onDied(target: string, from: string): void {
@@ -541,6 +595,7 @@ export class Game {
     )
     if (victim === this.me) {
       this.alive = false
+      this.resetLock()
       this.diedAt = performance.now()
       this.flight.speed = 0
       this.killerName = killer?.info.name ?? null
@@ -697,6 +752,7 @@ export class Game {
         now - this.lastFire >= settings.fireCooldownMs
       )
         this.fire(now, settings)
+      this.updateLock(dt, now, settings)
       if (now - this.lastStateSent >= 1000 / settings.tickRate) this.sendState(now)
     } else {
       const left = (this.diedAt + settings.respawnDelayMs - now) / 1000
@@ -705,8 +761,12 @@ export class Game {
 
     const flying = this.alive && !this.seat && !this.result
     sound.runEngine(flying, Math.abs(this.flight.speed) / settings.maxSpeed)
+    if (this.result || !this.alive) this.resetLock()
+    this.missileRequested = false
+
     this.updateRemotes(dt, now)
     this.updateBullets(dt, now, settings)
+    this.updateMissiles(dt, now, settings)
     this.effects.update(dt)
     this.updateCamera(dt, settings)
     // The renderer would only refresh this when drawing, after the markers
@@ -719,6 +779,7 @@ export class Game {
     this.hud.setSpeed(this.flight.speed)
     this.hud.setCopilot(this.copilotWords(settings))
     this.hud.setMarkers(this.markers())
+    this.showLock(now, settings)
     this.radar.update(this.flight.position, this.flight.quaternion, this.contacts())
     const scores = input.scoreboard || !this.alive || this.result !== null
     this.hud.showScoreboard(scores, scores ? this.scores() : [])
@@ -772,6 +833,7 @@ export class Game {
     me.group.quaternion.copy(this.flight.quaternion)
     const cooldown = this.rules?.gunnerCooldownMs ?? settings.fireCooldownMs
     if (input.fire && now - this.lastFire >= cooldown) this.fire(now, settings)
+    this.updateLock(dt, now, settings)
     if (now - this.lastStateSent >= 1000 / settings.tickRate) this.sendState(now)
   }
 
@@ -807,6 +869,160 @@ export class Game {
       p: position.toArray() as V3,
       d: direction.toArray() as V3,
     })
+  }
+
+  // --- Lock-on and missiles ----------------------------------------------------
+
+  /** Everything we may lock on to: the enemies our bullets can hit. */
+  private *lockCandidates(settings: Settings): Generator<LockCandidate> {
+    if (this.mothership && this.team === 'attackers') {
+      yield {
+        id: MOTHERSHIP,
+        position: this.mothership.group.position,
+        radius: this.rules?.mothershipRadius ?? 0,
+      }
+    }
+    for (const [id, remote] of this.remotes) {
+      if (remote.info.dead || !this.isTarget(remote.info)) continue
+      yield { id, position: remote.group.position, radius: settings.shipRadius }
+    }
+  }
+
+  private readonly nose = new Vector3()
+
+  /** Locks on to whatever we keep ahead, and fires a missile if asked to. */
+  private updateLock(dt: number, now: number, settings: Settings): void {
+    const nose = this.nose.copy(FORWARD).applyQuaternion(this.flight.quaternion)
+    stepLock(
+      this.lock,
+      this.flight.position,
+      nose,
+      this.lockCandidates(settings),
+      settings,
+      dt * 1000,
+    )
+    if (
+      this.missileRequested &&
+      this.lock.locked &&
+      this.lock.target &&
+      now - this.lastMissile >= settings.missileCooldownMs
+    ) {
+      this.launchMissile(now, settings, this.lock.target)
+    }
+  }
+
+  private resetLock(): void {
+    Object.assign(this.lock, newLock())
+  }
+
+  private launchMissile(now: number, settings: Settings, target: string): void {
+    this.lastMissile = now
+    const direction = FORWARD.clone().applyQuaternion(this.flight.quaternion)
+    const position = this.flight.position
+      .clone()
+      .addScaledVector(direction, settings.shipRadius * 1.2)
+    const id = `m${++this.bulletCounter}`
+    this.myMissiles.set(id, {
+      group: this.effects.missile(true, position, direction),
+      position,
+      previous: position.clone(),
+      direction,
+      target,
+      expiresAt: now + settings.missileTtlMs,
+    })
+    this.connection.send({
+      type: 'missile',
+      id,
+      target,
+      p: position.toArray() as V3,
+      d: direction.toArray() as V3,
+    })
+  }
+
+  /** Where a missile's target is now, as drawn here; null once it is gone or dead. */
+  private missileTarget(target: string): Vector3 | null {
+    if (target === MOTHERSHIP) return this.mothership?.group.position ?? null
+    if (target === this.myId) return this.alive ? this.flight.position : null
+    const remote = this.remotes.get(target)
+    return remote && !remote.info.dead ? remote.group.position : null
+  }
+
+  /**
+   * Flies every missile after its target. Ours are hit-tested against their
+   * target as drawn here, as bullets are; others' just vanish when they get
+   * there, and the damage message tells what they did.
+   */
+  private updateMissiles(dt: number, now: number, settings: Settings): void {
+    let incoming = false
+    for (const [mine, missiles] of [
+      [true, this.myMissiles],
+      [false, this.otherMissiles],
+    ] as const) {
+      for (const [id, missile] of missiles) {
+        const target = this.missileTarget(missile.target)
+        missile.previous.copy(missile.position)
+        stepMissile(missile, target, settings, dt)
+        this.effects.moveMissile(missile.group, missile.position, missile.direction, dt)
+        let struck = false
+        if (target && missile.target === MOTHERSHIP) {
+          struck = this.mothership?.hull.segmentHits(missile.previous, missile.position) ?? false
+        } else if (target) {
+          struck = segmentHitsSphere(
+            missile.previous,
+            missile.position,
+            target,
+            settings.shipRadius,
+          )
+        }
+        if (!mine && missile.target === this.myId && target) incoming = true
+        if (struck && mine) {
+          this.connection.send({ type: 'hit', bulletId: id, target: missile.target })
+          if (!document.hidden) this.effects.explosion(missile.position, 6, 0xff8a3d)
+        }
+        if (struck || now > missile.expiresAt) {
+          this.effects.releaseMissile(missile.group)
+          missiles.delete(id)
+        }
+      }
+    }
+    this.hud.setMissileWarning(incoming)
+  }
+
+  private clearMissiles(): void {
+    for (const missile of [...this.myMissiles.values(), ...this.otherMissiles.values()]) {
+      this.effects.releaseMissile(missile.group)
+    }
+    this.myMissiles.clear()
+    this.otherMissiles.clear()
+    this.hud.setMissileWarning(false)
+  }
+
+  /** The lock reticle around the target, and the missile button once locked. */
+  private showLock(now: number, settings: Settings): void {
+    const target = this.lock.target ? this.missileTarget(this.lock.target) : null
+    const screen = target ? this.toScreen(target) : null
+    this.hud.setLock(
+      screen && {
+        ...screen,
+        progress: lockProgress(this.lock, settings),
+        locked: this.lock.locked,
+      },
+    )
+    this.hud.setMissile(
+      this.lock.locked
+        ? { secondsLeft: (this.lastMissile + settings.missileCooldownMs - now) / 1000 }
+        : null,
+    )
+  }
+
+  /** A point's position on screen, in pixels; null when off screen or behind us. */
+  private toScreen(position: Vector3): { x: number; y: number } | null {
+    const p = this.projected.copy(position).project(this.camera)
+    if (p.z > 1 || Math.abs(p.x) > 1 || Math.abs(p.y) > 1) return null
+    return {
+      x: ((p.x + 1) / 2) * this.root.clientWidth,
+      y: ((1 - p.y) / 2) * this.root.clientHeight,
+    }
   }
 
   /**
@@ -1098,6 +1314,7 @@ export class Game {
       this.setPaused(!this.paused)
       return
     }
+    if (event.code === 'KeyF' && !event.repeat) this.missileRequested = true
     if (event.code === 'Enter' && !this.alive && this.settings) {
       if (performance.now() >= this.diedAt + this.settings.respawnDelayMs) this.requestRespawn()
     }
@@ -1112,6 +1329,8 @@ export class Game {
     if (document.hidden) return
     for (const bullet of this.otherBullets.values()) this.effects.releaseBullet(bullet.mesh)
     this.otherBullets.clear()
+    for (const missile of this.otherMissiles.values()) this.effects.releaseMissile(missile.group)
+    this.otherMissiles.clear()
   }
 
   private end(reason: string): void {

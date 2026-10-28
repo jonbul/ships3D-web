@@ -67,7 +67,10 @@ async function onLogout() {
   align-items: center;
   gap: 1rem;
   flex-wrap: wrap;
-  padding: 0.6rem 1rem;
+  /* The page is edge-to-edge (viewport-fit=cover, for the game), so on
+     phones the bar must keep clear of the status bar and notch itself. */
+  padding: max(0.6rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right)) 0.6rem
+    max(1rem, env(safe-area-inset-left));
   background: var(--panel);
   border-bottom: 1px solid var(--border);
 }

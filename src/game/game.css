@@ -274,6 +274,97 @@
   display: none;
 }
 
+/* --- Lock-on and missiles ------------------------------------------------ */
+
+/* Centred on the target by its transform (translate, then scale as the lock
+   closes in). */
+.hud-lock {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 3rem;
+  height: 3rem;
+  margin: -1.5rem 0 0 -1.5rem;
+  border: 2px dashed #ffd54f;
+  border-radius: 6px;
+  box-sizing: border-box;
+}
+.hud-lock.locked {
+  border: 2px solid #ff5252;
+  box-shadow: 0 0 8px rgb(255 82 82 / 0.7);
+}
+.hud-lock-label {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-top: 0.2rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #ff5252;
+}
+.hud-lock.locked .hud-lock-label {
+  display: block;
+}
+
+.hud-missile {
+  position: absolute;
+  left: 50%;
+  bottom: 16%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  border: 2px solid #ff5252;
+  border-radius: 999px;
+  background: rgb(255 82 82 / 0.25);
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  animation: hud-missile-ready 0.8s ease-in-out infinite alternate;
+}
+.hud-missile:disabled {
+  border-color: rgb(255 255 255 / 0.35);
+  background: rgb(10 14 23 / 0.45);
+  color: rgb(230 236 245 / 0.7);
+  animation: none;
+  cursor: default;
+}
+.hud-missile-key {
+  padding: 0 0.35rem;
+  border: 1px solid currentColor;
+  border-radius: 3px;
+  font-size: 0.8em;
+}
+@keyframes hud-missile-ready {
+  to {
+    background: rgb(255 82 82 / 0.5);
+  }
+}
+
+.hud-missile-warning {
+  position: absolute;
+  top: 28%;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 0.3rem 0.8rem;
+  border-radius: 4px;
+  background: rgb(0 0 0 / 0.5);
+  color: #ff5252;
+  font-weight: 700;
+  animation: hud-blink 0.6s ease-in-out infinite alternate;
+}
+@keyframes hud-blink {
+  to {
+    opacity: 0.35;
+  }
+}
+
 /* --- Phones (Game options.touch): on-screen controls ---------------------- */
 
 /* Landscape, thumbs on the lower corners: throttle on the left edge, stick
@@ -298,6 +389,22 @@
 }
 .touch-layout .hud-life {
   width: 7rem;
+}
+/* Between the stick and the fire button, for the right thumb. */
+.touch-layout .hud-missile {
+  left: auto;
+  transform: none;
+  right: calc(max(0.8rem, env(safe-area-inset-right)) + 8.5rem);
+  bottom: max(0.8rem, env(safe-area-inset-bottom));
+  width: 5rem;
+  height: 5rem;
+  padding: 0;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 0.8rem;
+}
+.touch-layout .hud-missile-key {
+  display: none;
 }
 
 .touch-controls {

@@ -272,9 +272,9 @@ const es: Messages = {
     killsAndDeaths: (kills: number, deaths: number) => `${kills} derribos · ${deaths} bajas`,
     copilotLeaving: '¡Nos estamos saliendo de la arena de combate, señor!',
     copilotTakingHelm: 'Tomo el mando, señor. ¡De vuelta a la arena!',
-    hint: 'Haz clic para dirigir con el ratón · W/S acelerar · A/D alabeo · flechas girar · Espacio disparar · Tab marcador · +/- alcance del radar',
+    hint: 'Haz clic para dirigir con el ratón · W/S acelerar · A/D alabeo · flechas girar · Espacio disparar · F misil (con el blanco fijado) · Tab marcador · +/- alcance del radar',
     touchHint:
-      'Izquierda: acelerador · joystick o inclinación para dirigir · ⟲ ⟳ alabeo · DISPARAR · toca el radar para cambiar su alcance',
+      'Izquierda: acelerador · joystick o inclinación para dirigir · ⟲ ⟳ alabeo · DISPARAR · MISIL con el blanco fijado · toca el radar para cambiar su alcance',
     radarTitle: 'Cambiar el alcance del radar (+ / -)',
     player: 'Jugador',
     kills: 'Derribos',
@@ -320,8 +320,13 @@ const es: Messages = {
     youLost: 'Has perdido',
     backToLobby: (seconds: number) => `Vuelta a la sala de espera en ${seconds}`,
     gunnerHint:
-      'Haz clic para apuntar con el ratón · flechas apuntar · Espacio disparar · Tab marcador',
-    gunnerTouchHint: 'Joystick o inclinación para apuntar la torreta · DISPARAR',
+      'Haz clic para apuntar con el ratón · flechas apuntar · Espacio disparar · F misil · Tab marcador',
+    gunnerTouchHint:
+      'Joystick o inclinación para apuntar la torreta · DISPARAR · MISIL con el blanco fijado',
+    locked: 'FIJADO',
+    missile: 'MISIL',
+    missileReloading: (seconds: number) => `MISIL ${seconds}`,
+    missileIncoming: '¡Un misil va a por ti!',
   },
 }
 
