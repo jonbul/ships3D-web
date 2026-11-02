@@ -255,9 +255,9 @@ const en = {
   game: {
     leave: 'Leave',
     leavingZone: 'Leaving the battle zone',
-    hint: 'Click to steer with the mouse · W/S throttle · A/D roll · arrows turn · Space fire · F missile (once locked on) · Tab scores · +/- radar range',
+    hint: 'Click to steer with the mouse · W/S throttle · A/D roll · arrows turn · Space fire · F missile (once locked on) · E evasive roll · Q 180° turn · Tab scores · +/- radar range',
     touchHint:
-      'Left: throttle · stick or tilt to steer · ⟲ ⟳ roll · FIRE · MISSILE once locked on · tap the radar to change its range',
+      'Left: throttle · stick or tilt to steer · ⟲ ⟳ roll · FIRE · MISSILE once locked on · EVADE roll · 180° turn · tap the radar to change its range',
     radarTitle: 'Change the radar range (+ / -)',
     player: 'Player',
     kills: 'Kills',
@@ -308,6 +308,9 @@ const en = {
     missile: 'MISSILE',
     missileReloading: (seconds: number) => `MISSILE ${seconds}`,
     missileIncoming: 'Missile incoming!',
+    evade: 'EVADE',
+    turnAround: 'Turn around (180°)',
+    missileDodged: 'Missile shaken off!',
   },
 }
 

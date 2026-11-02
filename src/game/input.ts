@@ -2,6 +2,9 @@ import { clamp, type Controls } from './flight'
 
 export interface InputState extends Controls {
   fire: boolean
+  /** Held for an evasive barrel roll, and for a 180° turn (acted on once per press). */
+  evade: boolean
+  turn: boolean
   /** Held to show the scoreboard. */
   scoreboard: boolean
   /**
@@ -35,6 +38,11 @@ const MOUSE_RECENTER = 2.5
  */
 export class KeyboardMouseInput implements InputSource {
   private readonly keys = new Set<string>()
+  /**
+   * Keys pressed since the last read, so a tap shorter than a frame (press
+   * and release before the game looks) still counts for one-shot actions.
+   */
+  private readonly tapped = new Set<string>()
   private stickX = 0
   private stickY = 0
   private mouseFire = false
@@ -68,14 +76,18 @@ export class KeyboardMouseInput implements InputSource {
     this.stickY *= decay
     const axis = (positive: string, negative: string) =>
       (this.keys.has(positive) ? 1 : 0) - (this.keys.has(negative) ? 1 : 0)
-    return {
+    const state: InputState = {
       pitch: clamp(axis('ArrowUp', 'ArrowDown') + this.stickY, -1, 1),
       yaw: clamp(axis('ArrowRight', 'ArrowLeft') + this.stickX, -1, 1),
       roll: axis('KeyD', 'KeyA'),
       throttle: axis('KeyW', 'KeyS'),
       fire: this.keys.has('Space') || this.mouseFire,
+      evade: this.keys.has('KeyE') || this.tapped.has('KeyE'),
+      turn: this.keys.has('KeyQ') || this.tapped.has('KeyQ'),
       scoreboard: this.keys.has('Tab'),
     }
+    this.tapped.clear()
+    return state
   }
 
   dispose(): void {
@@ -97,6 +109,7 @@ export class KeyboardMouseInput implements InputSource {
       event.preventDefault()
     }
     this.keys.add(event.code)
+    if (!event.repeat) this.tapped.add(event.code)
   }
 
   private onKeyUp = (event: KeyboardEvent): void => {
@@ -150,6 +163,8 @@ export class CombinedInput implements InputSource {
       roll: 0,
       throttle: 0,
       fire: false,
+      evade: false,
+      turn: false,
       scoreboard: false,
     }
     for (const source of this.sources) {
@@ -159,6 +174,8 @@ export class CombinedInput implements InputSource {
       state.roll += s.roll
       state.throttle += s.throttle
       state.fire ||= s.fire
+      state.evade ||= s.evade
+      state.turn ||= s.turn
       state.scoreboard ||= s.scoreboard
       state.speedTarget ??= s.speedTarget
     }

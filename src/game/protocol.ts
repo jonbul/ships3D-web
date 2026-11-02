@@ -39,6 +39,13 @@ export interface Settings {
   missileTtlMs: number
   missileDamage: number
   missileCooldownMs: number
+  /**
+   * An evasive roll (every evadeCooldownMs) with a missile after us within
+   * dodgeRange shakes it off; a 180° turn can be done every turnCooldownMs.
+   */
+  dodgeRange: number
+  evadeCooldownMs: number
+  turnCooldownMs: number
 }
 
 /**
@@ -113,6 +120,8 @@ export type ServerMessage =
   | { type: 'snapshot'; players: PlayerState[] }
   | { type: 'fire'; id: string; owner: string; p: V3; d: V3 }
   | { type: 'missile'; id: string; owner: string; target: string; p: V3; d: V3 }
+  /** A missile was shaken off by an evasive roll: it flies on, harmless. */
+  | { type: 'missileLost'; id: string }
   | { type: 'damage'; target: string; from: string; bulletId: string; life: number }
   | { type: 'died'; target: string; from: string }
   | { type: 'respawned'; id: string; life: number; p: V3; q: Q4 }
@@ -164,6 +173,8 @@ export type ClientMessage =
   | { type: 'missile'; id: string; target: string; p: V3; d: V3 }
   /** One of our bullets or missiles (its id as bulletId) hit `target`. */
   | { type: 'hit'; bulletId: string; target: string }
+  /** We did an evasive roll with this missile (its id as received) close. */
+  | { type: 'dodge'; missileId: string }
   | { type: 'respawn' }
   /** Our ship ran into ship `with`, or into the mothership (MOTHERSHIP). */
   | { type: 'crash'; with: string }

@@ -258,9 +258,9 @@ const es: Messages = {
   game: {
     leave: 'Salir',
     leavingZone: 'Estás saliendo de la zona de batalla',
-    hint: 'Haz clic para dirigir con el ratón · W/S acelerar · A/D alabeo · flechas girar · Espacio disparar · F misil (con el blanco fijado) · Tab marcador · +/- alcance del radar',
+    hint: 'Haz clic para dirigir con el ratón · W/S acelerar · A/D alabeo · flechas girar · Espacio disparar · F misil (con el blanco fijado) · E tonel evasivo · Q giro de 180° · Tab marcador · +/- alcance del radar',
     touchHint:
-      'Izquierda: acelerador · joystick o inclinación para dirigir · ⟲ ⟳ alabeo · DISPARAR · MISIL con el blanco fijado · toca el radar para cambiar su alcance',
+      'Izquierda: acelerador · joystick o inclinación para dirigir · ⟲ ⟳ alabeo · DISPARAR · MISIL con el blanco fijado · ESQUIVAR con un tonel · 180° media vuelta · toca el radar para cambiar su alcance',
     radarTitle: 'Cambiar el alcance del radar (+ / -)',
     player: 'Jugador',
     kills: 'Derribos',
@@ -313,6 +313,9 @@ const es: Messages = {
     missile: 'MISIL',
     missileReloading: (seconds: number) => `MISIL ${seconds}`,
     missileIncoming: '¡Un misil va a por ti!',
+    evade: 'ESQUIVAR',
+    turnAround: 'Dar la vuelta (180°)',
+    missileDodged: '¡Misil esquivado!',
   },
 }
 

@@ -96,6 +96,8 @@ export class Hud {
   private readonly missileButton: HTMLButtonElement
   private readonly missileLabel: HTMLSpanElement
   private readonly missileWarning: HTMLDivElement
+  private readonly alarm: HTMLDivElement
+  private alarmLevel = -1
 
   /** `assault`: the assault mode's lobby, round gauges and scoreboard columns. */
   constructor(container: HTMLElement, actions: HudActions, assault = false) {
@@ -103,6 +105,9 @@ export class Hud {
     this.root = el('div', 'hud')
     container.appendChild(this.root)
 
+    // Under everything else: the whole screen glows red while a missile is
+    // after us.
+    this.alarm = el('div', 'hud-alarm', this.root)
     this.markerLayer = el('div', 'hud-markers', this.root)
 
     const top = el('div', 'hud-top', this.root)
@@ -193,6 +198,7 @@ export class Hud {
     this.lock.hidden = true
     this.missileButton.hidden = true
     this.missileWarning.hidden = true
+    this.alarm.hidden = true
     this.setStatus(text.connecting)
   }
 
@@ -360,9 +366,22 @@ export class Hud {
     this.missileButton.disabled = !ready
   }
 
-  /** "Missile incoming!", while an enemy missile is after us. */
-  setMissileWarning(visible: boolean): void {
+  /**
+   * The missile alarm: "Missile incoming!" and the screen pulsing red, more
+   * strongly and faster as `danger` goes from 0 (no missile after us: hidden)
+   * to 1 (about to hit).
+   */
+  setMissileAlarm(danger: number): void {
+    const visible = danger > 0
     this.missileWarning.hidden = !visible
+    this.alarm.hidden = !visible
+    if (!visible) return
+    // In steps, so the animation isn't restarted every frame.
+    const level = Math.round(danger * 10) / 10
+    if (level === this.alarmLevel) return
+    this.alarmLevel = level
+    this.alarm.style.setProperty('--danger', String(level))
+    this.alarm.style.animationDuration = `${0.7 - 0.5 * level}s`
   }
 
   setMarkers(markers: Marker[]): void {
